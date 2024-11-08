@@ -3,12 +3,12 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::collections::HashMap;
 
-mod ast;
+mod ast; 
 
 use ast::*;
 
 #[macro_use]
-extern crate lalrpop_util;
+extern crate lalrpop_util; 
 
 lalrpop_mod!(pub parser);
 
@@ -23,41 +23,35 @@ fn main() {
 
     let result = eval_progam(&mut enviornment, ast);
 
-    println!("{:?}", result);
+    println!("{result:?}");
 }
 
 fn read_test() -> String {
     let f = File::open("src/test.txt").unwrap();
-    let mut lines = BufReader::new(f).lines();
+    let lines = BufReader::new(f).lines();
     let mut test = String::new();
 
-    loop{
-        if let Some(s) = lines.next() {
-            test.push_str(&s.unwrap());
-        }else {
-            break;
-        }
+    for s in lines{
+        test.push_str(&s.unwrap());
     }
 
-    return test;
+    test
 }
 
-fn eval_progam(enviornment: &mut HashMap<String, Value>, Program::Body{statements}: Program) -> Result<(), String>{
+fn eval_progam(enviornment: &mut HashMap<String, Value>, 
+    Program::Body{statements}: Program) -> Result<(), String>{
     for statement in statements {
-        if let Err(e) = eval_statement(enviornment, statement) {
-            return Err(e);
-        }
+        eval_statement(enviornment, statement)?;
     }
 
     Ok(())
 }
 
-fn eval_statement(enviornment: &mut HashMap<String, Value>, statement: Statement) -> Result<(), String> {
+fn eval_statement(enviornment: &mut HashMap<String, Value>, 
+    statement: Statement) -> Result<(), String> {
     match statement {
         Statement::Expression{expression} => {
-            if let Err(e) = eval_expression(enviornment, expression) {
-                return Err(e);
-            }
+            eval_expression(enviornment, expression)?;
         },
         Statement::Assignment{name, rhs} => {
             match eval_expression(enviornment, rhs) {
@@ -73,7 +67,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>, statement: Statement
     Ok(())
 }
 
-fn eval_expression(enviornment: &mut HashMap<String, Value>, expression: Expression) -> Result<Value, String>{
+fn eval_expression(enviornment: &mut HashMap<String, Value>, 
+    expression: Expression) -> Result<Value, String>{
     match expression {
         Expression::Int{v} => Ok(Value::Int{v}),
         Expression::Identifier{name} => {
@@ -91,16 +86,13 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>, expression: Express
                 }
             }
             
-            let v = 
-                match enviornment.get(&function) {
-                    Some(v) => v,
-                    None => return Err(format!("'{}' is not defined", &function))
-                };
+            let Some(v) = enviornment.get(&function) 
+                else { return Err(format!("'{}' is not defined", &function)) };
             
             if let Value::Function{f} = v {
                 f(vals)
             }else{
-                Err(format!("'{}' is not a function", function))
+                Err(format!("'{function}' is not a function"))
             }
         },
         Expression::Operation{lhs, rhs} => {
@@ -122,7 +114,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>, expression: Express
                     _ => Err(format!("unhandled typ es: {:?}", (lhs, rhs))),
                 }
             }else {
-                Err(format!("dev error: "))
+                Err("dev error: ".to_string())
             }
         }
 //        _ => Err(format!("unhandled expression: {:?}", expression)),

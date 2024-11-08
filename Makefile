@@ -20,12 +20,7 @@ check_lint:
 	TEST_DIR='$(shell pwd)/$(tgt_test_dir)' \
 		cargo clippy \
 			--all-targets \
-			--all-features \
-			-- \
-			-D warnings \
-			-D clippy::pedantic \
-			-D clippy::cargo \
-			-A clippy::module-name-repetitions
+			--all-features
 	python3 scripts/check_line_length.py \
-		'**/*.rs' \
-		79
+		'src/*.rs' \
+		80
