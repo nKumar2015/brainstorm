@@ -2,6 +2,12 @@
 name = "rustlang"
 version = "0.1.0"
 edition = "2021"
+description = "A language written in rust"
+repository = "https://github.com/nKumar2015/rustlang"
+license = "MIT"
+keywords = ["rustlang", "programming-language"]
+categories = ["learning-tools", "programming-language"]
+
 
 [dependencies]
 lalrpop-util = { version = "0.21.0",  features = ["lexer"]}
