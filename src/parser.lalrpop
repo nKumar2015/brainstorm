@@ -1,0 +1,36 @@
+use crate::ast::*;
+
+grammar;
+
+pub Program : Program = {
+    <statements:Statement*> => Program::Body{statements}
+}
+
+pub Statement: Statement = {
+    <name:Identifier> "=" <rhs:Expression> ";" => Statement::Assignment{name, rhs},
+    <expression:Expression> ";" => Statement::Expression{expression}
+}
+
+pub Expression: Expression = {
+    #[precedence(level="0")]
+    <v:IntLiteral> => Expression::Int{v},
+    <name:Identifier> => Expression::Identifier{name},
+
+    #[precedence(level="1")] #[assoc(side="left")]
+    <lhs:Expression> "<" <rhs:Expression> => Expression::Operation{lhs: Box::new(lhs), rhs: Box::new(rhs)},
+    <function:Identifier> "(" <arg:Expression> ")" => Expression::Call{function, args: vec![Box::new(arg)]}
+}
+
+Identifier: String = {
+    <s:r"[_a-zA-Z][_a-zA-Z0-9]*"> => s.to_string(),
+}
+
+IntLiteral: i64 = {
+    <s:r"[0-9]+"> => s.parse().unwrap(),
+}
+
+match {
+    r"//[^\n\r]*[\n\r]*" => {},
+    r"\s*" => {},
+    _,
+}

@@ -1,0 +1,10 @@
+[package]
+name = "rustlang"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lalrpop-util = { version = "0.21.0",  features = ["lexer"]}
+
+[build-dependencies]
+lalrpop = "0.22.0" 

@@ -1,0 +1,12 @@
+print(1);
+1;
+x = 1;
+print(x);
+print(x < 2);
+//
+// if (x > 2) {
+//     print('T');
+// }else{
+//     print('F');
+// }
+
