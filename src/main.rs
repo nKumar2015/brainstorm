@@ -138,6 +138,6 @@ enum Value {
 }
 
 fn print_(values: Vec<Value>) -> Result<Value, String> {
-    print!("{:?}\n", values);
+    println!("{values:?}");
     Ok(Value::Null)
 }

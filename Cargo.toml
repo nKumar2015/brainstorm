@@ -7,7 +7,7 @@ repository = "https://github.com/nKumar2015/rustlang"
 license = "MIT"
 keywords = ["rustlang", "programming-language"]
 categories = ["learning-tools", "programming-language"]
-
+readme = "README.md"
 
 [dependencies]
 lalrpop-util = { version = "0.21.0",  features = ["lexer"]}
