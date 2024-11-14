@@ -15,6 +15,10 @@ pub Statement: Statement = {
     
     <expression:Expression> ";" => Statement::Expression{expression},
     
+    "while" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
+        => Statement::While{condition, statements},
+    
+
     "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
         => Statement::If{condition, statements, else_statements: None},
     

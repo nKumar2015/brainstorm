@@ -53,7 +53,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             enviornment.insert(name, v);
         },
         Statement::If{condition, statements,
-                      else_statements } => {
+                      else_statements} => {
             match eval_expression(enviornment, condition){
                 Ok(Value::Bool { b: true }) => {
                     eval_block(enviornment, statements)?;
@@ -66,6 +66,24 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 _ => return Err("Condition must be of type 'bool'".to_string()),
             }
         },
+        Statement::While{condition, statements} => {            
+            loop{
+                let b = 
+                    match eval_expression(enviornment, condition.clone()) {
+                        Ok(Value::Bool{b}) => b ,
+                        Err(e) => return Err(e),
+                        _ => return Err(
+                            "Condition must be of type 'bool'".to_string()),
+                    };
+                            
+                if !b { break; }
+                
+                #[allow(clippy::question_mark)]
+                if let Err(e) = eval_block(enviornment, statements.clone()) {
+                    return Err(e);
+                }
+            }
+        }
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 

@@ -10,9 +10,12 @@ pub enum Statement {
     OperatorAssignment{name: String, 
                        operator: Option<Operator>, 
                        rhs: Expression},
+    
     If{condition: Expression, 
        statements: Vec<Statement>, 
        else_statements: Option<Vec<Statement>>},
+    
+    While{condition: Expression, statements: Vec<Statement>}
 }
 
 #[derive(Clone,Debug)] 
