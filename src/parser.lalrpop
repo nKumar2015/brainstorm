@@ -11,7 +11,7 @@ pub Statement: Statement = {
         => Statement::Assignment{name, rhs},
     
     <name:Identifier> "+=" <rhs:Expression> ";" 
-        => Statement::OperatorAssignment{name, operator: Some(Operator::Plus), rhs},
+        => Statement::OperatorAssignment{name, operator: Operator::Plus, rhs},
     
     <expression:Expression> ";" => Statement::Expression{expression},
     

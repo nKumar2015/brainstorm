@@ -28,7 +28,7 @@ fn main() {
 
     println!("PROGRAM OUTPUT: \n");
 
-    let result = eval::eval_program(&mut enviornment, ast);
+    let result = eval::eval_program(&mut enviornment, &ast);
 
     println!("{result:?}");
 }

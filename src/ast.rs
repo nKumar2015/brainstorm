@@ -8,7 +8,7 @@ pub enum Statement {
     Expression{expression: Expression},
     Assignment{name: String, rhs: Expression},
     OperatorAssignment{name: String, 
-                       operator: Option<Operator>, 
+                       operator: Operator, 
                        rhs: Expression},
     
     If{condition: Expression, 

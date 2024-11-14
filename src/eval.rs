@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use crate::ast::{Expression, Program, Statement, Operator};
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
-    Program::Body{statements}: Program) -> Result<(), String> {
+    Program::Body{statements}: &Program) -> Result<(), String> {
         
         eval_block(enviornment, statements)
 }
 
 fn eval_block(enviornment: &mut HashMap<String, Value>, 
-              statements: Vec<Statement>) -> Result<(), String> {
+              statements: &Vec<Statement>) -> Result<(), String> {
     
     for statement in statements {
         eval_statement(enviornment, statement)?;
@@ -19,7 +19,7 @@ fn eval_block(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_statement(enviornment: &mut HashMap<String, Value>, 
-    statement: Statement) -> Result<(), String> {
+    statement: &Statement) -> Result<(), String> {
     match statement {
         Statement::Expression{expression} => {
             eval_expression(enviornment, expression)?;
@@ -27,14 +27,14 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
         Statement::Assignment{name, rhs} => {
             match eval_expression(enviornment, rhs) {
                 Ok(v) => {
-                    enviornment.insert(name, v);
+                    enviornment.insert(name.to_string(), v);
                 },
                 Err(e) => return Err(e),
             }
         },
         Statement::OperatorAssignment{name, operator, rhs} => {
             let lhs = 
-                match enviornment.get(&name) {
+                match enviornment.get(name) {
                     Some(v) => v.clone(),
                     None => return Err(format!("'{}' is not defined", &name))
                 };
@@ -45,12 +45,12 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 };
 
             let v = 
-                match operate(operator.expect("msg"), &lhs, &rhs) {
+                match operate(operator, &lhs, &rhs) {
                     Ok(v) => v,
                     Err(e) => return Err(e)
                 };
 
-            enviornment.insert(name, v);
+            enviornment.insert(name.to_string(), v);
         },
         Statement::If{condition, statements,
                       else_statements} => {
@@ -69,7 +69,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
         Statement::While{condition, statements} => {            
             loop{
                 let b = 
-                    match eval_expression(enviornment, condition.clone()) {
+                    match eval_expression(enviornment, condition) {
                         Ok(Value::Bool{b}) => b ,
                         Err(e) => return Err(e),
                         _ => return Err(
@@ -79,7 +79,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 if !b { break; }
                 
                 #[allow(clippy::question_mark)]
-                if let Err(e) = eval_block(enviornment, statements.clone()) {
+                if let Err(e) = eval_block(enviornment, statements) {
                     return Err(e);
                 }
             }
@@ -91,12 +91,12 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_expression(enviornment: &mut HashMap<String, Value>, 
-    expression: Expression) -> Result<Value, String>{
+    expression: &Expression) -> Result<Value, String>{
     match expression {
-        Expression::Int{v} => Ok(Value::Int{v}),
-        Expression::StringLiteral{ s } => Ok(Value::Str{s}),
+        Expression::Int{v} => Ok(Value::Int{v: *v}),
+        Expression::StringLiteral{ s } => Ok(Value::Str{s: s.to_string()}),
         Expression::Identifier{name} => {
-            match enviornment.get(&name) {
+            match enviornment.get(name) {
                 Some(v) => Ok(v.clone()),
                 None => Err(format!("'{}' is not defined", &name))
             }
@@ -110,7 +110,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 }
             }
             
-            let Some(v) = enviornment.get(&function) 
+            let Some(v) = enviornment.get(function) 
                 else { return Err(format!("'{}' is not defined", &function)) };
             
             if let Value::Function{f} = v {
@@ -126,7 +126,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             let mut vals = vec![];
 
             for expression in expressions {
-                match eval_expression(enviornment, *expression){
+                match eval_expression(enviornment, expression){
                     Ok(v) => vals.push(v),
                     Err(e) => return Err(e),
                 }
@@ -142,7 +142,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
     }
 }
 
-fn operate(operator: Operator, lhs: &Value, rhs: &Value) 
+fn operate(operator: &Operator, lhs: &Value, rhs: &Value) 
     -> Result<Value, String>{
     match (lhs, rhs){
         (Value::Int{v: lhs}, Value::Int{v: rhs}) => {
