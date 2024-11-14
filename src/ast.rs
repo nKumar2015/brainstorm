@@ -15,7 +15,11 @@ pub enum Statement {
        statements: Vec<Statement>, 
        else_statements: Option<Vec<Statement>>},
     
-    While{condition: Expression, statements: Vec<Statement>}
+    While{condition: Expression, statements: Vec<Statement>},
+
+    For{control_var: String, initial: Expression, condition: Expression, 
+        iterate_var: String, operator: Operator, iterate_exp: Expression, 
+        statements: Vec<Statement>}
 }
 
 #[derive(Clone,Debug)] 

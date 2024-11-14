@@ -18,6 +18,12 @@ pub Statement: Statement = {
     "while" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
         => Statement::While{condition, statements},
     
+    "for" "(" <control_var:Identifier> "=" <initial:Expression> ";"
+    <condition:Expression> ";" <iterate_var:Identifier> <operator:Operator> <iterate_exp:Expression>")" "{"
+    <statements:Statement*> "}" 
+        => Statement::For{control_var, initial, condition, 
+                          iterate_var, operator, iterate_exp, 
+                          statements},
 
     "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
         => Statement::If{condition, statements, else_statements: None},
@@ -52,6 +58,17 @@ pub Expression: Expression = {
 
     <function:Identifier> "(" <arg:Expression> ")" 
         => Expression::Call{function, args: vec![arg]}
+}
+
+Operator: Operator = {
+    <s:"+="> => Operator::Plus,
+    <s:"-="> => Operator::Minus,
+    <s:"*="> => Operator::Times,
+    <s:"/="> => Operator::Divide,
+    <s:"+"> => Operator::Plus,
+    <s:"-"> => Operator::Minus,
+    <s:"*"> => Operator::Times,
+    <s:"/"> => Operator::Divide,
 }
 
 Identifier: String = {

@@ -27,7 +27,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
         Statement::Assignment{name, rhs} => {
             match eval_expression(enviornment, rhs) {
                 Ok(v) => {
-                    enviornment.insert(name.to_string(), v);
+                    enviornment.insert(name.clone(), v);
                 },
                 Err(e) => return Err(e),
             }
@@ -50,7 +50,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                     Err(e) => return Err(e)
                 };
 
-            enviornment.insert(name.to_string(), v);
+            enviornment.insert(name.clone(), v);
         },
         Statement::If{condition, statements,
                       else_statements} => {
@@ -83,7 +83,57 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                     return Err(e);
                 }
             }
+        },
+        Statement::For{control_var, initial, condition, 
+                       iterate_var, operator, iterate_exp, 
+                       statements} => {
+            
+            // First, initalize the control_variable
+
+            match eval_expression(enviornment, initial) {
+                Ok(v) => {
+                    enviornment.insert(control_var.clone(), v);
+                },
+                Err(e) => return Err(e),
+            }
+
+            // Evaluate condition
+
+            loop {
+                let b = 
+                    match eval_expression(enviornment, condition) {
+                        Ok(Value::Bool{b}) => b,
+                        Err(e) => return Err(e),
+                        _ => return Err(
+                            "Condition must be of type 'bool'".to_string()),
+                    };
+                
+                if !b { break; }
+
+                eval_block(enviornment, statements)?;
+
+                let expression_value = 
+                    match eval_expression(enviornment, iterate_exp) {
+                        Ok(v) => v,
+                        Err(e) => return Err(e),
+                    };
+                
+                let iterating_value =             
+                    match enviornment.get(iterate_var) {
+                        Some(v) => v.clone(),
+                        None => return Err(
+                            format!("'{}' is not defined", &iterate_var))
+                    };
+
+                match operate(operator, &iterating_value, &expression_value){
+                    Ok(v) => {
+                        enviornment.insert(iterate_var.clone(), v);
+                    },
+                    Err(e) => return Err(e),
+                }
+            }
         }
+
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 
@@ -94,7 +144,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
     expression: &Expression) -> Result<Value, String>{
     match expression {
         Expression::Int{v} => Ok(Value::Int{v: *v}),
-        Expression::StringLiteral{ s } => Ok(Value::Str{s: s.to_string()}),
+        Expression::StringLiteral{ s } => Ok(Value::Str{s: s.clone()}),
         Expression::Identifier{name} => {
             match enviornment.get(name) {
                 Some(v) => Ok(v.clone()),
