@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Program, Statement};
+use crate::ast::{Expression, Program, Statement, Operator};
 
 grammar;
 
@@ -7,18 +7,47 @@ pub Program : Program = {
 }
 
 pub Statement: Statement = {
-    <name:Identifier> "=" <rhs:Expression> ";" => Statement::Assignment{name, rhs},
-    <expression:Expression> ";" => Statement::Expression{expression}
+    <name:Identifier> "=" <rhs:Expression> ";"
+        => Statement::Assignment{name, rhs},
+    
+    <name:Identifier> "+=" <rhs:Expression> ";" 
+        => Statement::OperatorAssignment{name, operator: Some(Operator::Plus), rhs},
+    
+    <expression:Expression> ";" => Statement::Expression{expression},
+    
+    "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
+        => Statement::If{condition, statements, else_statements: None},
+    
+    "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
+        "else" "{" <else_statements:Statement*> "}" 
+        => Statement::If{condition, statements, else_statements: Some(else_statements)}
+
 }
 
 pub Expression: Expression = {
     #[precedence(level="0")]
     <v:IntLiteral> => Expression::Int{v},
     <name:Identifier> => Expression::Identifier{name},
+    <s:StringLiteral> => Expression::StringLiteral{s},
 
     #[precedence(level="1")] #[assoc(side="left")]
-    <lhs:Expression> "<" <rhs:Expression> => Expression::Operation{lhs: Box::new(lhs), rhs: Box::new(rhs)},
-    <function:Identifier> "(" <arg:Expression> ")" => Expression::Call{function, args: vec![Box::new(arg)]}
+    <lhs:Expression> "==" <rhs:Expression> 
+        => Expression::Comparison{lhs: Box::new(lhs), 
+                                  rhs: Box::new(rhs), 
+                                  operator: Operator::Equal},
+
+    <lhs:Expression> "<" <rhs:Expression> 
+        => Expression::Comparison{lhs: Box::new(lhs), 
+                                  rhs: Box::new(rhs), 
+                                  operator: Operator::LessThan},
+
+    <lhs:Expression> ">" <rhs:Expression> 
+        => Expression::Comparison{lhs: Box::new(lhs), 
+                                  rhs: Box::new(rhs), 
+                                  operator: Operator::GreaterThan},
+
+    <function:Identifier> "(" <arg:Expression> ")" 
+        => Expression::Call{function, args: vec![arg]}
 }
 
 Identifier: String = {
@@ -27,6 +56,10 @@ Identifier: String = {
 
 IntLiteral: i64 = {
     <s:r"[0-9]+"> => s.parse().unwrap(),
+}
+
+StringLiteral: String = {
+    <s:r#""[^\"]*""#> => s.replace('"', "").to_string(),
 }
 
 match {

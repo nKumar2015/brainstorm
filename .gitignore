@@ -1,1 +1,4 @@
 /target
+
+# Testing file I use to look at ast output
+ast.json

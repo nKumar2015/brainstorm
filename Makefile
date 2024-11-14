@@ -20,7 +20,25 @@ check_lint:
 	TEST_DIR='$(shell pwd)/$(tgt_test_dir)' \
 		cargo clippy \
 			--all-targets \
-			--all-features
+			--all-features \
+			-- \
+			--no-deps \
+			--deny warnings \
+			--deny clippy::pedantic \
+			--deny clippy::cargo \
+			--allow clippy::trivially_copy_pass_by_ref \
+			--allow clippy::missing_errors_doc \
+			--allow clippy::module_name_repetitions \
+			--allow clippy::cloned_instead_of_copied \
+			--allow clippy::uninlined_format_args \
+			--allow clippy::no_effect_underscore_binding \
+			--allow clippy::cast_sign_loss \
+			--allow clippy::must_use_candidate \
+			--allow clippy::match_same_arms \
+			--allow clippy::too_many_lines \
+			--allow clippy::needless_pass_by_value \
+			--allow clippy::unnested_or_patterns
+			
 	python3 scripts/check_line_length.py \
 		'src/*.rs' \
 		80

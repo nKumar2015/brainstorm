@@ -1,12 +1,11 @@
-print(1);
-1;
-x = 1;
-print(x);
-print(x < 2);
-//
-// if (x > 2) {
-//     print('T');
-// }else{
-//     print('F');
-// }
+i = 1;
+print(i);
+i += 1;
+print(i);
 
+//i = 0;
+//
+//while ( i > 1 ){
+//    print(i);
+//    i += 1;
+//}
