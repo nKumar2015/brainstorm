@@ -145,6 +145,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
     match expression {
         Expression::Int{v} => Ok(Value::Int{v: *v}),
         Expression::StringLiteral{ s } => Ok(Value::Str{s: s.clone()}),
+        Expression::Boolean{ b } => Ok(Value::Bool{b: *b}),
+        Expression::Character{ c } => Ok(Value::Char{c: *c}),
         Expression::Identifier{name} => {
             match enviornment.get(name) {
                 Some(v) => Ok(v.clone()),
@@ -217,5 +219,7 @@ pub enum Value {
     #[allow(dead_code)]
     Str{s: String},
     Bool{b: bool},
+    #[allow(dead_code)]
+    Char{c: char},
     Function{f: fn(Vec<Value>) -> Result<Value, String>},
 }

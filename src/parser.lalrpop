@@ -39,6 +39,8 @@ pub Expression: Expression = {
     <v:IntLiteral> => Expression::Int{v},
     <name:Identifier> => Expression::Identifier{name},
     <s:StringLiteral> => Expression::StringLiteral{s},
+    <b:BooleanLiteral> => Expression::Boolean{b},
+    <c:CharacterLiteral> => Expression::Character{c},
 
     #[precedence(level="1")] #[assoc(side="left")]
     <lhs:Expression> "==" <rhs:Expression> 
@@ -81,6 +83,15 @@ IntLiteral: i64 = {
 
 StringLiteral: String = {
     <s:r#""[^\"]*""#> => s.replace('"', "").to_string(),
+}
+
+BooleanLiteral: bool = {
+    <s:"true"> => true,
+    <s:"false"> => false,
+}
+
+CharacterLiteral: char = {
+    <s:r#"'[^\']'"#> => s.replace('\'', "").chars().next().expect("invalid char!"),
 }
 
 match {

@@ -26,6 +26,8 @@ pub enum Statement {
 pub enum Expression {
     Int{v: i64},
     StringLiteral{s: String},
+    Boolean{b: bool},
+    Character{c: char},
     Identifier{name: String},
     Call{function: String, args: Vec<Expression>},
     Comparison{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator}
