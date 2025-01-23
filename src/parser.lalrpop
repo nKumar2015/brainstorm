@@ -40,6 +40,7 @@ pub Expression: Expression = {
     <name:Identifier> => Expression::Identifier{name},
     <s:StringLiteral> => Expression::StringLiteral{s},
     <b:BooleanLiteral> => Expression::Boolean{b},
+    <f:FloatLiteral> => Expression::Float{f},
     <c:CharacterLiteral> => Expression::Character{c},
 
     #[precedence(level="1")] #[assoc(side="left")]
@@ -59,7 +60,27 @@ pub Expression: Expression = {
                                   operator: Operator::GreaterThan},
 
     <function:Identifier> "(" <arg:Expression> ")" 
-        => Expression::Call{function, args: vec![arg]}
+        => Expression::Call{function, args: vec![arg]},
+
+    <lhs:Expression> "+" <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs),
+                                 rhs: Box::new(rhs),
+                                 operator: Operator::Plus},
+
+    <lhs:Expression> "-" <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs),
+                                 rhs: Box::new(rhs),
+                                 operator: Operator::Minus},
+
+    <lhs:Expression> "/" <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs),
+                                 rhs: Box::new(rhs),
+                                 operator: Operator::Divide},
+
+    <lhs:Expression> "*" <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs),
+                                 rhs: Box::new(rhs),
+                                 operator: Operator::Times}
 }
 
 Operator: Operator = {
@@ -77,8 +98,12 @@ Identifier: String = {
     <s:r"[_a-zA-Z][_a-zA-Z0-9]*"> => s.to_string(),
 }
 
-IntLiteral: i64 = {
+IntLiteral: i32 = {
     <s:r"[0-9]+"> => s.parse().unwrap(),
+}
+
+FloatLiteral: f64 = {
+    <s:r"[0-9]+[.][0-9]+"> => s.parse().unwrap(),
 }
 
 StringLiteral: String = {

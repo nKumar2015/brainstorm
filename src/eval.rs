@@ -146,6 +146,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
         Expression::Int{v} => Ok(Value::Int{v: *v}),
         Expression::StringLiteral{ s } => Ok(Value::Str{s: s.clone()}),
         Expression::Boolean{ b } => Ok(Value::Bool{b: *b}),
+        Expression::Float{ f} => Ok(Value::Float{f: *f}),
         Expression::Character{ c } => Ok(Value::Char{c: *c}),
         Expression::Identifier{name} => {
             match enviornment.get(name) {
@@ -189,6 +190,23 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             }else {
                 Err("dev error: ".to_string())
             }
+        },
+        Expression::Operation { lhs, rhs, operator } => {
+            let expressions = vec![lhs, rhs];
+            let mut vals = vec![];
+
+            for expression in expressions {
+                match eval_expression(enviornment, expression) {
+                    Ok(v) => vals.push(v),
+                    Err(e) => return Err(e),
+                }
+            }
+
+            if let [lhs, rhs] = vals.as_slice() {
+                operate(operator, lhs, rhs)
+            }else{
+                Err("dev error: ".to_string())
+            }
         }
       //_ => Err(format!("unhandled expression: {:?}", expression)),
     }
@@ -208,6 +226,50 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
                 Operator::Equal => {Ok(Value::Bool { b: lhs == rhs })},
             } 
         },
+        (Value::Float{f: lhs}, Value::Float{f: rhs}) => {
+            match operator{
+                Operator::Plus => {Ok(Value::Float { f: lhs + rhs })},
+                Operator::Minus => {Ok(Value::Float { f: lhs - rhs })},
+                Operator::Times => {Ok(Value::Float { f: lhs * rhs })},
+                Operator::Divide => {Ok(Value::Float { f: lhs / rhs })},
+                Operator::LessThan => {Ok(Value::Bool { b: lhs < rhs })},
+                Operator::GreaterThan => {Ok(Value::Bool { b: lhs > rhs })},
+                Operator::Equal => {Ok(Value::Bool { 
+                                                    b: (lhs - rhs).abs() < 
+                                                    0.000_000_000_000_001
+                                                 })},
+            }
+        },
+        (Value::Float{f: lhs}, Value::Int{v: rhs}) => {
+            let rhsf = f64::from(*rhs);
+            match operator{
+                Operator::Plus => {Ok(Value::Float { f: lhs + rhsf })},
+                Operator::Minus => {Ok(Value::Float { f: lhs - rhsf })},
+                Operator::Times => {Ok(Value::Float { f: lhs * rhsf })},
+                Operator::Divide => {Ok(Value::Float { f: lhs / rhsf })},
+                Operator::LessThan => {Ok(Value::Bool { b: *lhs < rhsf })},
+                Operator::GreaterThan => {Ok(Value::Bool { b: *lhs > rhsf })},
+                Operator::Equal => {Ok(Value::Bool { 
+                                                    b: (lhs - rhsf).abs() < 
+                                                    0.000_000_000_000_001
+                                                 })},
+            }
+        },
+        (Value::Int{v: lhs}, Value::Float{f: rhs}) => {
+            let lhsf = f64::from(*lhs);
+            match operator{
+                Operator::Plus => {Ok(Value::Float { f: lhsf + rhs })},
+                Operator::Minus => {Ok(Value::Float { f: lhsf - rhs })},
+                Operator::Times => {Ok(Value::Float { f: lhsf * rhs })},
+                Operator::Divide => {Ok(Value::Float { f: lhsf / rhs })},
+                Operator::LessThan => {Ok(Value::Bool { b: lhsf < *rhs })},
+                Operator::GreaterThan => {Ok(Value::Bool { b: lhsf > *rhs })},
+                Operator::Equal => {Ok(Value::Bool { 
+                                                    b: (lhsf - rhs).abs() < 
+                                                    0.000_000_000_000_001
+                                                 })},
+            }
+        }
         _ => Err(format!("unhandled types: {:?}", (lhs, rhs))),
     }
 }               
@@ -215,10 +277,12 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
 #[derive(Clone,Debug)]
 pub enum Value {
     Null,
-    Int{v: i64},
+    Int{v: i32},
     #[allow(dead_code)]
     Str{s: String},
     Bool{b: bool},
+    #[allow(dead_code)]
+    Float{f: f64},
     #[allow(dead_code)]
     Char{c: char},
     Function{f: fn(Vec<Value>) -> Result<Value, String>},

@@ -24,13 +24,15 @@ pub enum Statement {
 
 #[derive(Clone,Debug)] 
 pub enum Expression {
-    Int{v: i64},
+    Int{v: i32},
     StringLiteral{s: String},
     Boolean{b: bool},
+    Float{f: f64},
     Character{c: char},
     Identifier{name: String},
     Call{function: String, args: Vec<Expression>},
-    Comparison{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator}
+    Comparison{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
+    Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator}
 }
 
 #[derive(Clone,Debug)] 
