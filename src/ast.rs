@@ -32,7 +32,8 @@ pub enum Expression {
     Identifier{name: String},
     Call{function: String, args: Vec<Expression>},
     Comparison{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
-    Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator}
+    Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
+    List{elements: Vec<Expression>}
 }
 
 #[derive(Clone,Debug)] 

@@ -42,6 +42,7 @@ pub Expression: Expression = {
     <b:BooleanLiteral> => Expression::Boolean{b},
     <f:FloatLiteral> => Expression::Float{f},
     <c:CharacterLiteral> => Expression::Character{c},
+    "[" <elements:ExpressionList> "]" => Expression::List{elements},
 
     #[precedence(level="1")] #[assoc(side="left")]
     <lhs:Expression> "==" <rhs:Expression> 
@@ -83,15 +84,25 @@ pub Expression: Expression = {
                                  operator: Operator::Times}
 }
 
+pub ExpressionList: Vec<Expression> = {
+    () => vec![],
+    <head:Expression> => vec![head],
+    <head:Expression> "," <tail:ExpressionList> => {
+        let mut list = tail.clone();
+        list.insert(0, head);
+        list
+    }
+}
+
 Operator: Operator = {
     <s:"+="> => Operator::Plus,
     <s:"-="> => Operator::Minus,
     <s:"*="> => Operator::Times,
     <s:"/="> => Operator::Divide,
-    <s:"+"> => Operator::Plus,
-    <s:"-"> => Operator::Minus,
-    <s:"*"> => Operator::Times,
-    <s:"/"> => Operator::Divide,
+    <s:"+">  => Operator::Plus,
+    <s:"-">  => Operator::Minus,
+    <s:"*">  => Operator::Times,
+    <s:"/">  => Operator::Divide,
 }
 
 Identifier: String = {

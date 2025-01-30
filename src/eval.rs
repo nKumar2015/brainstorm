@@ -5,17 +5,7 @@ use crate::ast::{Expression, Program, Statement, Operator};
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
     Program::Body{statements}: &Program) -> Result<(), String> {
         
-        eval_block(enviornment, statements)
-}
-
-fn eval_block(enviornment: &mut HashMap<String, Value>, 
-              statements: &Vec<Statement>) -> Result<(), String> {
-    
-    for statement in statements {
-        eval_statement(enviornment, statement)?;
-    }
-
-    Ok(())
+        eval_statements(enviornment, statements)
 }
 
 fn eval_statement(enviornment: &mut HashMap<String, Value>, 
@@ -56,11 +46,11 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                       else_statements} => {
             match eval_expression(enviornment, condition){
                 Ok(Value::Bool { b: true }) => {
-                    eval_block(enviornment, statements)?;
+                    eval_statements(enviornment, statements)?;
                 },
                 Ok(Value::Bool { b: false }) => {
                     if let Some(statements) = else_statements {
-                        eval_block(enviornment, statements)?;
+                        eval_statements(enviornment, statements)?;
                     }
                 },
                 _ => return Err("Condition must be of type 'bool'".to_string()),
@@ -79,7 +69,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 if !b { break; }
                 
                 #[allow(clippy::question_mark)]
-                if let Err(e) = eval_block(enviornment, statements) {
+                if let Err(e) = eval_statements(enviornment, statements) {
                     return Err(e);
                 }
             }
@@ -110,7 +100,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 
                 if !b { break; }
 
-                eval_block(enviornment, statements)?;
+                eval_statements(enviornment, statements)?;
 
                 let expression_value = 
                     match eval_expression(enviornment, iterate_exp) {
@@ -140,6 +130,16 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
     Ok(())
 }
 
+fn eval_statements(enviornment: &mut HashMap<String, Value>, 
+              statements: &Vec<Statement>) -> Result<(), String> {
+    
+    for statement in statements {
+        eval_statement(enviornment, statement)?;
+    }
+
+    Ok(())
+}
+
 fn eval_expression(enviornment: &mut HashMap<String, Value>, 
     expression: &Expression) -> Result<Value, String>{
     match expression {
@@ -155,13 +155,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             }
         },
         Expression::Call{function, args} =>  {
-            let mut vals = vec![];
-            for arg in args {
-                match eval_expression(enviornment, arg) {
-                    Ok(v) => vals.push(v),
-                    Err(e) => return Err(e)
-                }
-            }
+            let vals = eval_expressions(enviornment, args)?;
             
             let Some(v) = enviornment.get(function) 
                 else { return Err(format!("'{}' is not defined", &function)) };
@@ -207,9 +201,27 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             }else{
                 Err("dev error: ".to_string())
             }
-        }
-      //_ => Err(format!("unhandled expression: {:?}", expression)),
+        },
+        Expression::List { elements} => {
+            let vals = eval_expressions(enviornment, elements)?;
+            Ok(Value::List{e: vals})
+        },
+        //_ => Err(format!("unhandled expression: {:?}", expression)),
     }
+}
+
+fn eval_expressions(enviornment: &mut HashMap<String, Value>, 
+    expressions: &Vec<Expression>) -> Result<Vec<Value>, String> {
+        let mut vals = vec![];
+
+        for expression in expressions {
+            match eval_expression(enviornment, expression) {
+                Ok(v) => vals.push(v),
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(vals)
 }
 
 fn operate(operator: &Operator, lhs: &Value, rhs: &Value) 
@@ -285,5 +297,7 @@ pub enum Value {
     Float{f: f64},
     #[allow(dead_code)]
     Char{c: char},
+    #[allow(dead_code)]
+    List{e: Vec<Value>},
     Function{f: fn(Vec<Value>) -> Result<Value, String>},
 }

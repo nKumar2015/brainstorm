@@ -1,0 +1,6 @@
+xs = ['b', 'c'];
+//ys = [xs.., 'a', xs..];
+//[_, _, ..zs] = ys;
+//for z in zs {
+//    print(z);
+//}
