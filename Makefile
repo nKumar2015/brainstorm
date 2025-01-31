@@ -38,7 +38,8 @@ check_lint:
 			--allow clippy::too_many_lines \
 			--allow clippy::needless_pass_by_value \
 			--allow clippy::unnested_or_patterns \
-			--allow clippy::question_mark
+			--allow clippy::question_mark \
+			--allow clippy::unnecessary-wraps
 						
 	python3 scripts/check_line_length.py \
 		'src/*.rs' \

@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Program, Statement, Operator};
+use crate::ast::{Expression, Program, Statement, Operator, ListItem};
 
 grammar;
 
@@ -42,7 +42,7 @@ pub Expression: Expression = {
     <b:BooleanLiteral> => Expression::Boolean{b},
     <f:FloatLiteral> => Expression::Float{f},
     <c:CharacterLiteral> => Expression::Character{c},
-    "[" <elements:ExpressionList> "]" => Expression::List{elements},
+    "[" <items:ExpressionList> "]" => Expression::List{items},
 
     #[precedence(level="1")] #[assoc(side="left")]
     <lhs:Expression> "==" <rhs:Expression> 
@@ -84,12 +84,19 @@ pub Expression: Expression = {
                                  operator: Operator::Times}
 }
 
-pub ExpressionList: Vec<Expression> = {
+pub ExpressionList: Vec<ListItem> = {
     () => vec![],
-    <head:Expression> => vec![head],
-    <head:Expression> "," <tail:ExpressionList> => {
+    <head:Expression> <spread:".."?> => vec![ListItem{
+        expression: head, 
+        is_spread: spread.is_some()
+    }],
+    <head:Expression> <spread:".."?> "," <tail:ExpressionList> => {
         let mut list = tail.clone();
-        list.insert(0, head);
+        list.insert(0, ListItem{
+            expression: head, 
+            is_spread: spread.is_some()
+        });
+
         list
     }
 }

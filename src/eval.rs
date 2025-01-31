@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
 use crate::ast::{Expression, Program, Statement, Operator};
 
@@ -202,8 +202,27 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 Err("dev error: ".to_string())
             }
         },
-        Expression::List { elements} => {
-            let vals = eval_expressions(enviornment, elements)?;
+        Expression::List { items} => {
+            let mut vals: Vec<Value> = vec![];
+            
+            for item in items {
+                let v = 
+                    match eval_expression(enviornment, &item.expression) {
+                        Ok(v) => v,
+                        Err(e) => return Err(e)
+                    };
+
+                if !item.is_spread {
+                    vals.push(v);
+                    continue;
+                }
+
+                match v {
+                    Value::List{mut e} => vals.append(&mut e),
+                    _ => return Err("only lists can be spread!".to_string())
+                }
+            }
+
             Ok(Value::List{e: vals})
         },
         //_ => Err(format!("unhandled expression: {:?}", expression)),

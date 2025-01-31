@@ -33,7 +33,12 @@ pub enum Expression {
     Call{function: String, args: Vec<Expression>},
     Comparison{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
     Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
-    List{elements: Vec<Expression>}
+    List{items: Vec<ListItem>}
+}
+#[derive(Clone,Debug)] 
+pub struct ListItem {
+    pub expression: Expression,
+    pub is_spread: bool,
 }
 
 #[derive(Clone,Debug)] 
