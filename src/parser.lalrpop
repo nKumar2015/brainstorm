@@ -1,4 +1,13 @@
-use crate::ast::{Expression, Program, Statement, Operator, ListItem};
+use crate::ast::{
+    Expression, 
+    Program, 
+    Statement, 
+    Operator,
+    ListItem, 
+    AssignmentListItem,
+    ForLoop,
+    IfBranch
+};
 
 grammar;
 
@@ -10,78 +19,94 @@ pub Statement: Statement = {
     <name:Identifier> "=" <rhs:Expression> ";"
         => Statement::Assignment{name, rhs},
     
-    <name:Identifier> "+=" <rhs:Expression> ";" 
-        => Statement::OperatorAssignment{name, operator: Operator::Plus, rhs},
+    <name:Identifier> <operator:AssignmentOperator> <rhs:Expression> ";" 
+        => Statement::OperatorAssignment{name, operator, rhs},
     
-    <expression:Expression> ";" => Statement::Expression{expression},
-    
+    <name:Identifier> "++" ";" 
+        => Statement::OperatorAssignment{name, 
+                                         operator: Operator::Plus, 
+                                         rhs: Expression::Int{v: 1} },
+                                
+    <name:Identifier> "--" ";" 
+        => Statement::OperatorAssignment{name, 
+                                         operator: Operator::Minus, 
+                                         rhs: Expression::Int{v: 1} },
+        
+    <params:ForLoop> => Statement::For{params},
+    <params:IfBranch> => Statement::If{params}, 
+
     "while" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
         => Statement::While{condition, statements},
     
-    "for" "(" <control_var:Identifier> "=" <initial:Expression> ";"
-    <condition:Expression> ";" <iterate_var:Identifier> <operator:Operator> <iterate_exp:Expression>")" "{"
-    <statements:Statement*> "}" 
-        => Statement::For{control_var, initial, condition, 
-                          iterate_var, operator, iterate_exp, 
-                          statements},
+    <expression:Expression> ";" => Statement::Expression{expression},
+}
 
-    "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
-        => Statement::If{condition, statements, else_statements: None},
+pub IfBranch: IfBranch = {
+    "if" "(" <condition:Expression> ")" 
+    "{" <statements:Statement*> "}" 
+    "else" "{" <else_statements:Statement*> "}" 
+        => IfBranch{condition, 
+                    statements, 
+                    else_statements: Some(else_statements) },
     
-    "if" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
-        "else" "{" <else_statements:Statement*> "}" 
-        => Statement::If{condition, statements, else_statements: Some(else_statements)}
+    "if" "(" <condition:Expression> ")" 
+    "{" <statements:Statement*> "}" 
+        => IfBranch{condition, 
+                    statements, 
+                    else_statements: None }
+    
+}
 
+pub ForLoop: ForLoop = {
+    "for" "(" <initialization_statment:Statement>
+              <iteration_condition:Expression> ";"
+              <iteration_variable_statement:Statement> ")"
+              "{" <statements:Statement*> "}" 
+               => ForLoop { 
+                initialization_statment: Box::new(initialization_statment),
+                iteration_condition,
+                iteration_variable_statement: Box::new(iteration_variable_statement), 
+                statements }
 }
 
 pub Expression: Expression = {
     #[precedence(level="0")]
-    <v:IntLiteral> => Expression::Int{v},
-    <name:Identifier> => Expression::Identifier{name},
-    <s:StringLiteral> => Expression::StringLiteral{s},
-    <b:BooleanLiteral> => Expression::Boolean{b},
-    <f:FloatLiteral> => Expression::Float{f},
+    <v:IntLiteral>       => Expression::Int{v},
+    <name:Identifier>    => Expression::Identifier{name},
+    <s:StringLiteral>    => Expression::StringLiteral{s},
+    <b:BooleanLiteral>   => Expression::Boolean{b},
+    <f:FloatLiteral>     => Expression::Float{f},
     <c:CharacterLiteral> => Expression::Character{c},
-    "[" <items:ExpressionList> "]" => Expression::List{items},
 
+    //"[" <items:ExpressionList> "]" => Expression::List{items},
+    //"[" <items:AssignmentList> "]" "=" <rhs:Expression> 
+    //    => Expression::AssignmentList{items, rhs},
     #[precedence(level="1")] #[assoc(side="left")]
-    <lhs:Expression> "==" <rhs:Expression> 
-        => Expression::Comparison{lhs: Box::new(lhs), 
-                                  rhs: Box::new(rhs), 
-                                  operator: Operator::Equal},
-
-    <lhs:Expression> "<" <rhs:Expression> 
-        => Expression::Comparison{lhs: Box::new(lhs), 
-                                  rhs: Box::new(rhs), 
-                                  operator: Operator::LessThan},
-
-    <lhs:Expression> ">" <rhs:Expression> 
-        => Expression::Comparison{lhs: Box::new(lhs), 
-                                  rhs: Box::new(rhs), 
-                                  operator: Operator::GreaterThan},
+    <lhs:Expression> <operator:Operator> <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs), 
+                                 rhs: Box::new(rhs), 
+                                 operator },
+    
 
     <function:Identifier> "(" <arg:Expression> ")" 
         => Expression::Call{function, args: vec![arg]},
+}
 
-    <lhs:Expression> "+" <rhs:Expression>
-        => Expression::Operation{lhs: Box::new(lhs),
-                                 rhs: Box::new(rhs),
-                                 operator: Operator::Plus},
+pub AssignmentList: Vec<AssignmentListItem> = {
+    () => vec![],
+    <head:Identifier> => vec![AssignmentListItem{
+        identifier: head, 
+        is_spread: false,
+    }],
+    <head:Identifier> "," <tail:AssignmentList> => {
+        let mut list = tail.clone();
+        list.insert(0, AssignmentListItem{
+            identifier: head, 
+            is_spread: false,
+        });
 
-    <lhs:Expression> "-" <rhs:Expression>
-        => Expression::Operation{lhs: Box::new(lhs),
-                                 rhs: Box::new(rhs),
-                                 operator: Operator::Minus},
-
-    <lhs:Expression> "/" <rhs:Expression>
-        => Expression::Operation{lhs: Box::new(lhs),
-                                 rhs: Box::new(rhs),
-                                 operator: Operator::Divide},
-
-    <lhs:Expression> "*" <rhs:Expression>
-        => Expression::Operation{lhs: Box::new(lhs),
-                                 rhs: Box::new(rhs),
-                                 operator: Operator::Times}
+        list
+    }
 }
 
 pub ExpressionList: Vec<ListItem> = {
@@ -102,14 +127,21 @@ pub ExpressionList: Vec<ListItem> = {
 }
 
 Operator: Operator = {
-    <s:"+="> => Operator::Plus,
-    <s:"-="> => Operator::Minus,
-    <s:"*="> => Operator::Times,
-    <s:"/="> => Operator::Divide,
     <s:"+">  => Operator::Plus,
     <s:"-">  => Operator::Minus,
     <s:"*">  => Operator::Times,
     <s:"/">  => Operator::Divide,
+    <s:"<">  => Operator::LessThan,
+    <s:">">  => Operator::GreaterThan,
+    <s:"=="> => Operator::Equal,
+    <s:"!="> => Operator::NotEqual,
+}
+
+AssignmentOperator: Operator = {
+    <s:"+="> => Operator::Plus,
+    <s:"-="> => Operator::Minus,
+    <s:"*="> => Operator::Times,
+    <s:"/="> => Operator::Divide,
 }
 
 Identifier: String = {

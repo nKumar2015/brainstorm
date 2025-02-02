@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 mod ast; 
 mod eval;
+mod constants;
 
 use eval::Value;
 

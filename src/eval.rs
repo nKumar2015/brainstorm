@@ -1,6 +1,7 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
-use crate::ast::{Expression, Program, Statement, Operator};
+use crate::ast::{Expression, Operator, Program, Statement};
+use crate::constants::FP_ERROR_MARGIN;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
     Program::Body{statements}: &Program) -> Result<(), String> {
@@ -42,17 +43,17 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             enviornment.insert(name.clone(), v);
         },
-        Statement::If{condition, statements,
-                      else_statements} => {
-            match eval_expression(enviornment, condition){
-                Ok(Value::Bool { b: true }) => {
-                    eval_statements(enviornment, statements)?;
-                },
-                Ok(Value::Bool { b: false }) => {
-                    if let Some(statements) = else_statements {
-                        eval_statements(enviornment, statements)?;
-                    }
-                },
+        Statement::If{params} => {
+            match eval_expression(enviornment, &params.condition) {
+                Ok(Value::Bool{b: true}) 
+                    => eval_statements(enviornment, &params.statements)?,
+                Ok(Value::Bool{b: false}) 
+                    => {
+                        if let Some(else_statements) 
+                            = &params.else_statements { 
+                            eval_statements(enviornment, else_statements)?;
+                        }
+                    },
                 _ => return Err("Condition must be of type 'bool'".to_string()),
             }
         },
@@ -74,55 +75,31 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 }
             }
         },
-        Statement::For{control_var, initial, condition, 
-                       iterate_var, operator, iterate_exp, 
-                       statements} => {
-            
-            // First, initalize the control_variable
+        Statement::For{params} => {
 
-            match eval_expression(enviornment, initial) {
-                Ok(v) => {
-                    enviornment.insert(control_var.clone(), v);
-                },
+            match eval_statement(enviornment, &params.initialization_statment) {
+                Ok(()) => (),
                 Err(e) => return Err(e),
             }
 
-            // Evaluate condition
-
             loop {
                 let b = 
-                    match eval_expression(enviornment, condition) {
+                    match eval_expression(enviornment, 
+                            &params.iteration_condition) {
                         Ok(Value::Bool{b}) => b,
                         Err(e) => return Err(e),
                         _ => return Err(
-                            "Condition must be of type 'bool'".to_string()),
+                            "Condition must evaluate to a bool".to_string())
                     };
-                
+
                 if !b { break; }
-
-                eval_statements(enviornment, statements)?;
-
-                let expression_value = 
-                    match eval_expression(enviornment, iterate_exp) {
-                        Ok(v) => v,
-                        Err(e) => return Err(e),
-                    };
                 
-                let iterating_value =             
-                    match enviornment.get(iterate_var) {
-                        Some(v) => v.clone(),
-                        None => return Err(
-                            format!("'{}' is not defined", &iterate_var))
-                    };
+                eval_statements(enviornment, &params.statements)?;
 
-                match operate(operator, &iterating_value, &expression_value){
-                    Ok(v) => {
-                        enviornment.insert(iterate_var.clone(), v);
-                    },
-                    Err(e) => return Err(e),
-                }
+                eval_statement(enviornment, 
+                              &params.iteration_variable_statement)?;
             }
-        }
+        },
 
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
@@ -166,25 +143,6 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 Err(format!("'{function}' is not a function"))
             }
         },
-        Expression::Comparison{lhs, 
-                               rhs, 
-                               operator} => {
-            let expressions = vec![lhs, rhs];
-            let mut vals = vec![];
-
-            for expression in expressions {
-                match eval_expression(enviornment, expression){
-                    Ok(v) => vals.push(v),
-                    Err(e) => return Err(e),
-                }
-            }
-
-            if let [lhs, rhs] = vals.as_slice() {
-                    operate(operator, lhs, rhs)
-            }else {
-                Err("dev error: ".to_string())
-            }
-        },
         Expression::Operation { lhs, rhs, operator } => {
             let expressions = vec![lhs, rhs];
             let mut vals = vec![];
@@ -225,6 +183,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             Ok(Value::List{e: vals})
         },
+
         //_ => Err(format!("unhandled expression: {:?}", expression)),
     }
 }
@@ -255,6 +214,7 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
                 Operator::LessThan => {Ok(Value::Bool { b: lhs < rhs })},
                 Operator::GreaterThan => {Ok(Value::Bool { b: lhs > rhs })},
                 Operator::Equal => {Ok(Value::Bool { b: lhs == rhs })},
+                Operator::NotEqual => {Ok(Value::Bool { b: lhs != rhs })}
             } 
         },
         (Value::Float{f: lhs}, Value::Float{f: rhs}) => {
@@ -266,9 +226,11 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
                 Operator::LessThan => {Ok(Value::Bool { b: lhs < rhs })},
                 Operator::GreaterThan => {Ok(Value::Bool { b: lhs > rhs })},
                 Operator::Equal => {Ok(Value::Bool { 
-                                                    b: (lhs - rhs).abs() < 
-                                                    0.000_000_000_000_001
-                                                 })},
+                    b: (lhs - rhs).abs() < FP_ERROR_MARGIN 
+                })},
+                Operator::NotEqual => {Ok(Value::Bool { 
+                    b: (lhs - rhs).abs() > FP_ERROR_MARGIN 
+                })},
             }
         },
         (Value::Float{f: lhs}, Value::Int{v: rhs}) => {
@@ -281,9 +243,12 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
                 Operator::LessThan => {Ok(Value::Bool { b: *lhs < rhsf })},
                 Operator::GreaterThan => {Ok(Value::Bool { b: *lhs > rhsf })},
                 Operator::Equal => {Ok(Value::Bool { 
-                                                    b: (lhs - rhsf).abs() < 
-                                                    0.000_000_000_000_001
-                                                 })},
+                    b: (*lhs - rhsf).abs() < FP_ERROR_MARGIN 
+                })},
+                Operator::NotEqual => {Ok(Value::Bool { 
+                    b: (*lhs - rhsf).abs() > FP_ERROR_MARGIN 
+                })},
+
             }
         },
         (Value::Int{v: lhs}, Value::Float{f: rhs}) => {
@@ -296,9 +261,11 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
                 Operator::LessThan => {Ok(Value::Bool { b: lhsf < *rhs })},
                 Operator::GreaterThan => {Ok(Value::Bool { b: lhsf > *rhs })},
                 Operator::Equal => {Ok(Value::Bool { 
-                                                    b: (lhsf - rhs).abs() < 
-                                                    0.000_000_000_000_001
-                                                 })},
+                    b: (lhsf - *rhs).abs() < FP_ERROR_MARGIN 
+                })},
+                Operator::NotEqual => {Ok(Value::Bool { 
+                    b: (lhsf - *rhs).abs() > FP_ERROR_MARGIN 
+                })},
             }
         }
         _ => Err(format!("unhandled types: {:?}", (lhs, rhs))),
