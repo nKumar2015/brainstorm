@@ -6,7 +6,7 @@ pub enum Program {
 #[derive(Clone,Debug)] 
 pub enum Statement {
     Expression{expression: Expression},
-    Assignment{name: String, rhs: Expression},
+    Assignment{lhs: Expression, rhs: Expression},
     OperatorAssignment{name: String, 
                        operator: Operator, 
                        rhs: Expression},
@@ -14,15 +14,15 @@ pub enum Statement {
     If{params: IfBranch},
     
     While{condition: Expression, statements: Vec<Statement>},
-
-    For{params: ForLoop},
+    
+    //For{params: ForLoop},
 }
 
 #[derive(Clone,Debug)] 
 pub enum Expression {
     // BEGIN TYPES
     Int{v: i32},
-    StringLiteral{s: String},
+    String{s: String},
     Boolean{b: bool},
     Float{f: f64},
     Character{c: char},
@@ -33,8 +33,6 @@ pub enum Expression {
     Call{function: String, args: Vec<Expression>},
 
     Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
-
-    //AssignmentList{items: Vec<AssignmentListItem>, rhs: Expression}
 }
 #[derive(Clone,Debug)] 
 pub struct ForLoop {
@@ -54,12 +52,6 @@ pub struct IfBranch {
 #[derive(Clone,Debug)] 
 pub struct ListItem {
     pub expression: Expression,
-    pub is_spread: bool,
-}
-
-#[derive(Clone,Debug)] 
-pub struct AssignmentListItem {
-    pub identifier: String,
     pub is_spread: bool,
 }
 

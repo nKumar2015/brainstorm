@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Expression, Operator, Program, Statement};
+use crate::ast::{Expression, ListItem, Operator, Program, Statement};
 use crate::constants::FP_ERROR_MARGIN;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
@@ -9,19 +9,75 @@ pub fn eval_program(enviornment: &mut HashMap<String, Value>,
         eval_statements(enviornment, statements)
 }
 
+fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
+    -> Result<(), String> {
+
+    match lhs {
+        Expression::Identifier { name } 
+            => {enviornment.insert(name.clone(), rhs);},
+        
+        Expression::List { items } => {
+            let Value::List{e: new_items} = rhs 
+            else { 
+                return Err("cannot destructure non-list into list".to_string()) 
+            };
+
+            assign_list(enviornment, items, new_items)?;
+        }
+
+        Expression::Int { .. } => todo!("fix me"),
+        Expression::String { .. } => todo!("fix me"),
+        Expression::Boolean { ..} => todo!("fix me"),
+        Expression::Float { .. } => todo!("fix me"),
+        Expression::Character { .. } => todo!("fix me"),
+        Expression::Call { ..} => todo!("fix me"),
+        Expression::Operation { .. } => todo!("fix me"),
+    }
+
+
+
+    Ok(())
+}
+
+fn assign_list(enviornment: &mut HashMap<String, Value>, lhs: Vec<ListItem>, 
+    rhs: Vec<Value>) -> Result<(), String> {
+
+    if rhs.len() != lhs.len() {
+        return Err(format!("Cannot assign {} values to {} items", 
+                   rhs.len(), 
+                   lhs.len()) )
+    }
+    
+    for (ListItem{expression, is_spread}, rhs) 
+        in lhs.into_iter().zip(rhs.into_iter()) {
+
+        if is_spread {
+            return Err("Cannot use spread in list assignment".to_string())
+        }
+
+        if let Err(e) = assign(enviornment, expression, rhs) {
+            return Err(e)
+        }
+    }
+
+    Ok(())
+
+}
+
 fn eval_statement(enviornment: &mut HashMap<String, Value>, 
     statement: &Statement) -> Result<(), String> {
     match statement {
         Statement::Expression{expression} => {
             eval_expression(enviornment, expression)?;
         },
-        Statement::Assignment{name, rhs} => {
-            match eval_expression(enviornment, rhs) {
-                Ok(v) => {
-                    enviornment.insert(name.clone(), v);
-                },
-                Err(e) => return Err(e),
-            }
+        Statement::Assignment{lhs, rhs} => {
+            let v = 
+                match eval_expression(enviornment, rhs) {
+                    Ok(v) => v,
+                    Err(e) => return Err(e),
+                };
+            
+            assign(enviornment, lhs.clone(), v)?;
         },
         Statement::OperatorAssignment{name, operator, rhs} => {
             let lhs = 
@@ -75,7 +131,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 }
             }
         },
-        Statement::For{params} => {
+        /*Statement::For{params} => {
 
             match eval_statement(enviornment, &params.initialization_statment) {
                 Ok(()) => (),
@@ -99,7 +155,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 eval_statement(enviornment, 
                               &params.iteration_variable_statement)?;
             }
-        },
+        },*/
 
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
@@ -121,7 +177,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
     expression: &Expression) -> Result<Value, String>{
     match expression {
         Expression::Int{v} => Ok(Value::Int{v: *v}),
-        Expression::StringLiteral{ s } => Ok(Value::Str{s: s.clone()}),
+        Expression::String{ s } => Ok(Value::Str{s: s.clone()}),
         Expression::Boolean{ b } => Ok(Value::Bool{b: *b}),
         Expression::Float{ f} => Ok(Value::Float{f: *f}),
         Expression::Character{ c } => Ok(Value::Char{c: *c}),
@@ -184,7 +240,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             Ok(Value::List{e: vals})
         },
 
-        //_ => Err(format!("unhandled expression: {:?}", expression)),
+        //_=> Err(format!("unhandled expression: {:?}", expression)),
     }
 }
 
