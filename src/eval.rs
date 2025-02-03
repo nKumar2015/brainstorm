@@ -13,8 +13,12 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
     -> Result<(), String> {
 
     match lhs {
-        Expression::Identifier { name } 
-            => {enviornment.insert(name.clone(), rhs);},
+        Expression::Identifier { name } => {
+            if name == "_" {
+                return Ok(());
+            }
+            enviornment.insert(name.clone(), rhs);
+        },
         
         Expression::List { items } => {
             let Value::List{e: new_items} = rhs 
@@ -25,13 +29,20 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             assign_list(enviornment, items, new_items)?;
         }
 
-        Expression::Int { .. } => todo!("fix me"),
-        Expression::String { .. } => todo!("fix me"),
-        Expression::Boolean { ..} => todo!("fix me"),
-        Expression::Float { .. } => todo!("fix me"),
-        Expression::Character { .. } => todo!("fix me"),
-        Expression::Call { ..} => todo!("fix me"),
-        Expression::Operation { .. } => todo!("fix me"),
+        Expression::Int { .. } 
+            => return Err("Cannot assign to a Integer literal".to_string()),
+        Expression::String { .. } 
+            => return Err("Cannot assign to a String literal".to_string()),
+        Expression::Boolean { ..} 
+            => return Err("Cannot assign to a Boolean literal".to_string()),
+        Expression::Float { .. } 
+            => return Err("Cannot assign to a Float literal".to_string()),
+        Expression::Character { .. } 
+            => return Err("Cannot assign to a Character literal".to_string()),
+        Expression::Call { ..} 
+            => return Err("Cannot assign to a Function call".to_string()),
+        Expression::Operation { .. } 
+            => return Err("Cannot assign to a Operation".to_string()),
     }
 
 
@@ -42,22 +53,40 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
 fn assign_list(enviornment: &mut HashMap<String, Value>, lhs: Vec<ListItem>, 
     rhs: Vec<Value>) -> Result<(), String> {
 
-    if rhs.len() != lhs.len() {
+    if lhs.len() > rhs.len() {
         return Err(format!("Cannot assign {} values to {} items", 
-                   rhs.len(), 
-                   lhs.len()) )
+                    rhs.len(), 
+                    lhs.len()))
     }
-    
-    for (ListItem{expression, is_spread}, rhs) 
-        in lhs.into_iter().zip(rhs.into_iter()) {
 
-        if is_spread {
+    let mut assign_name_queue: Vec<ListItem> = vec![];
+    let mut assign_value_queue: Vec<Value> = vec![];
+
+    for x in 0..rhs.len(){
+        if x == lhs.len() - 1 && lhs.len() != rhs.len(){
+            if !lhs[x].is_pack {
+                return Err(format!("Cannot assign {} values to {} items", 
+                    rhs.len(), 
+                    lhs.len()))
+            }
+
+            assign_name_queue.push(lhs[x].clone());
+            assign_value_queue.push(Value::List{e: rhs[x..].to_vec()});
+            break;
+        }
+
+        if lhs[x].is_spread {
             return Err("Cannot use spread in list assignment".to_string())
         }
 
-        if let Err(e) = assign(enviornment, expression, rhs) {
-            return Err(e)
-        }
+        assign_name_queue.push(lhs[x].clone());
+        assign_value_queue.push(rhs[x].clone());
+    }
+
+    for (ListItem{expression, .. }, value) in
+        assign_name_queue.into_iter().zip(assign_value_queue.into_iter()) {
+        
+        assign(enviornment, expression, value)?;
     }
 
     Ok(())
@@ -131,8 +160,52 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 }
             }
         },
-        /*Statement::For{params} => {
+        Statement::For{params} => {
 
+            let v = 
+            match &params.iterate_expression {
+                Expression::List { .. } 
+                    => eval_expression(enviornment, 
+                                      &params.iterate_expression)?,
+                Expression::Identifier { .. } 
+                    => eval_expression(enviornment, 
+                                      &params.iterate_expression)?,
+                Expression::Call { ..} 
+                    => eval_expression(enviornment, 
+                                      &params.iterate_expression)?,
+                Expression::Int { .. } 
+                    => return Err(
+                        "Integer literals are not iterable".to_string()),
+                Expression::String { .. } 
+                    => return Err(
+                        "String literals are not iterable".to_string()),
+                Expression::Boolean { ..} 
+                    => return Err(
+                        "Boolean literals are not iterable".to_string()),
+                Expression::Float { .. } 
+                    => return Err(
+                        "Float literals are not iterable".to_string()),
+                Expression::Character { .. } 
+                    => return Err(
+                        "Character literals are not iterable".to_string()),
+                Expression::Operation { .. } 
+                    => return Err(
+                        "Operations are not iterable".to_string()),
+            };
+
+            let Value::List{e: iterator_list} = v 
+                else { return Err("Invalid Type".to_string())};
+
+            for list_item in iterator_list {
+                enviornment.insert(params.loop_var.clone(), list_item);
+
+                eval_statements(enviornment, &params.statements)?;
+            }
+            
+            
+
+            
+            /*
             match eval_statement(enviornment, &params.initialization_statment) {
                 Ok(()) => (),
                 Err(e) => return Err(e),
@@ -154,8 +227,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
                 eval_statement(enviornment, 
                               &params.iteration_variable_statement)?;
-            }
-        },*/
+            }*/
+        },
 
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
@@ -187,8 +260,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 None => Err(format!("'{}' is not defined", &name))
             }
         },
-        Expression::Call{function, args} =>  {
-            let vals = eval_expressions(enviornment, args)?;
+        Expression::Call{function, arguments} =>  {
+            let vals = eval_expressions(enviornment, arguments)?;
             
             let Some(v) = enviornment.get(function) 
                 else { return Err(format!("'{}' is not defined", &function)) };

@@ -15,7 +15,7 @@ pub enum Statement {
     
     While{condition: Expression, statements: Vec<Statement>},
     
-    //For{params: ForLoop},
+    For{params: ForLoop},
 }
 
 #[derive(Clone,Debug)] 
@@ -30,15 +30,14 @@ pub enum Expression {
     // END TYPES
 
     Identifier{name: String},
-    Call{function: String, args: Vec<Expression>},
+    Call{function: String, arguments: Vec<Expression>},
 
     Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
 }
 #[derive(Clone,Debug)] 
 pub struct ForLoop {
-    pub initialization_statment: Box<Statement>,
-    pub iteration_condition: Expression,
-    pub iteration_variable_statement: Box<Statement>,
+    pub loop_var: String,
+    pub iterate_expression: Expression,
     pub statements: Vec<Statement>,
 }
 
@@ -53,6 +52,7 @@ pub struct IfBranch {
 pub struct ListItem {
     pub expression: Expression,
     pub is_spread: bool,
+    pub is_pack: bool,
 }
 
 #[derive(Clone,Debug)] 

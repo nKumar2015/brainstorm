@@ -1,9 +1,14 @@
 xs = ['b', 'c'];
 ys = [xs.., 'a', xs..];
 [b, c] = xs;
-print(b);
-print(c);
-//[_, _, ..zs] = ys;
-//for z in zs {
-//    print(z);
-//}
+for (z in xs) {
+    print(z);
+}
+for (x in range(0, 5)) {
+    print(x);
+}
+
+[_, _, _, _, ..p] = ys;
+
+print(ys);
+print(p);

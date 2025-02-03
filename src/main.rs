@@ -20,7 +20,13 @@ fn main() {
 
     let mut enviornment = HashMap::new();
     enviornment.insert("print".to_string(), 
-        eval::Value::Function{f: print_});
+        Value::Function{f: print_});
+
+    enviornment.insert("range".to_string(), 
+        Value::Function{f: range});
+
+    enviornment.insert("range_step".to_string(), 
+        Value::Function{f: range_step});
 
     println!("AST OUTPUT: \n");
 
@@ -47,7 +53,38 @@ fn read_test() -> String {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn print_(values: Vec<Value>) -> Result<Value, String> {
-    println!("{values:?}");
+fn print_(args: Vec<Value>) -> Result<Value, String> {
+    println!("{args:?}");
     Ok(Value::Null)
 }
+
+fn range_step(args: Vec<Value>) -> Result<Value, String> {
+    let mut vals = vec![];
+
+    let start = args[0].clone();
+    let end = args[1].clone();
+    let step = args[2].clone();
+
+    let Value::Int{v: s} = start 
+        else { return Err("Invalid Type".to_string())};
+    
+    let Value::Int{v: e} = end 
+        else { return Err("Invalid Type".to_string())};
+
+    let Value::Int{v: st} = step 
+        else { return Err("Invalid Type".to_string())};
+
+    for x in (s..e).step_by(st.try_into().unwrap()) {
+        vals.push(Value::Int{v: x});
+    }
+
+    Ok(Value::List{e: vals})
+}
+
+fn range(args: Vec<Value>) -> Result<Value, String> {
+    let mut vals = args;
+    vals.push(Value::Int{v: 1});
+    range_step(vals)
+}
+
+

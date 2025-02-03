@@ -31,7 +31,7 @@ pub Statement: Statement = {
                                          operator: Operator::Minus, 
                                          rhs: Expression::Int{v: 1} },
         
-    //<params:ForLoop> => Statement::For{params},
+    <params:ForLoop> => Statement::For{params},
     <params:IfBranch> => Statement::If{params}, 
 
     "while" "(" <condition:Expression> ")" "{" <statements:Statement*> "}" 
@@ -57,7 +57,9 @@ pub IfBranch: IfBranch = {
 }
 
 pub ForLoop: ForLoop = {
-
+    "for" "(" <loop_var:Identifier> "in" <iterate_expression:Expression> ")" 
+    "{" <statements:Statement*> "}"
+        => ForLoop{loop_var, iterate_expression, statements}
 }
 
 pub Expression: Expression = {
@@ -78,26 +80,38 @@ pub Expression: Expression = {
                                  operator },
     
 
-    <function:Identifier> "(" <arg:Expression> ")" 
-        => Expression::Call{function, args: vec![arg]},
+    <function:Identifier> "(" <arguments:FunctionArgs> ")" 
+        => Expression::Call{function, arguments},
 }
 
+pub FunctionArgs: Vec<Expression> = {
+    () => vec![],
+    <argument:Expression> => vec![argument],
+    <argument:Expression> "," <tail:FunctionArgs> => {
+        let mut args = tail.clone();
+        args.insert(0, argument);
+
+        args
+    }
+}
 
 pub ExpressionList: Vec<ListItem> = {
     () => vec![],
-    <head:Expression> <spread:".."?> => vec![ListItem{
+    <pack:".."?> <head:Expression> <spread:".."?> => vec![ListItem{
         expression: head, 
-        is_spread: spread.is_some()
+        is_spread: spread.is_some(),
+        is_pack: pack.is_some(),
     }],
     <head:Expression> <spread:".."?> "," <tail:ExpressionList> => {
         let mut list = tail.clone();
         list.insert(0, ListItem{
             expression: head, 
-            is_spread: spread.is_some()
+            is_spread: spread.is_some(),
+            is_pack: false,
         });
 
         list
-    }
+    },
 }
 
 Operator: Operator = {
