@@ -18,3 +18,12 @@ fn hello(x){
 }
 
 hello(5);
+
+fn test() {
+    x = 6 + 6;
+    return x;
+}
+
+value = test();
+
+print(value);

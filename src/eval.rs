@@ -229,15 +229,19 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                               &params.iteration_variable_statement)?;
             }*/
         },
-        Statement::FunctionDefinition { name, arguments, statements } => {
+        Statement::FunctionDefinition { name, arguments, 
+                                        statements, return_val } => {
             if enviornment.get(name).is_some() {
                 return Err("Function '{}' is already defined!".to_string());
             }
+
+
 
             enviornment.insert(name.to_string(), 
                                Value::UserDefFunction { 
                                     statements: statements.clone(),
                                     arguments: arguments.clone(),
+                                    return_val: return_val.clone()
                                 });
         }
 
@@ -283,7 +287,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 Value::Function{f} => {
                     f(vals)
                 },
-                Value::UserDefFunction { statements, arguments } => {
+                Value::UserDefFunction {statements, 
+                                        arguments , return_val} => {
                     if vals.len() != arguments.len() {
                         return Err(format!("Expected {} arguments, got {}", 
                                             arguments.len(), 
@@ -294,16 +299,20 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     }
                     eval_statements(&mut local_env, statements)?;
                     
-                    Ok(Value::Null)
+                    match return_val {
+                        Some(name) => {
+                            match local_env.get(name) {
+                                Some(v) => Ok(v.clone()),
+                                None 
+                                    => Err(format!("'{}' is not defined", name))
+                            }
+                        },
+                        None => Ok(Value::Null)
+                    }
+
                 },
                 _ => Err(format!("'{function}' is not a function"))
             }
-
-            //if let Value::Function{f} = v {
-            //    f(vals)
-            //}else{
-            //    Err(format!("'{function}' is not a function"))
-            //}
         },
         Expression::Operation { lhs, rhs, operator } => {
             let expressions = vec![lhs, rhs];
@@ -449,5 +458,6 @@ pub enum Value {
     List{e: Vec<Value>},
     Function{f: fn(Vec<Value>) -> Result<Value, String>},
     #[allow(dead_code)]
-    UserDefFunction{statements: Vec<Statement>, arguments: Vec<String> }
+    UserDefFunction{statements: Vec<Statement>, arguments: Vec<String>, 
+                    return_val: Option<String> }
 }

@@ -10,7 +10,7 @@ use crate::ast::{
 
 grammar;
 
-pub Program : Program = {
+pub Program: Program = {
     <statements:Statement*> => Program::Body{statements}
 }
 
@@ -40,8 +40,12 @@ pub Statement: Statement = {
     <expression:Expression> ";" => Statement::Expression{expression},
 
     "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*> "return" <return_val:Identifier> ";" "}"
+        => Statement::FunctionDefinition{name, arguments, statements, return_val: Some(return_val)},
+
+    "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
     "{" <statements:Statement*> "}"
-        => Statement::FunctionDefinition{name, arguments, statements}
+        => Statement::FunctionDefinition{name, arguments, statements, return_val: None}
 }
 
 pub FunctionDefArgs: Vec<String> = {
