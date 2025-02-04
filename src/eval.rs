@@ -43,6 +43,8 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             => return Err("Cannot assign to a Function call".to_string()),
         Expression::Operation { .. } 
             => return Err("Cannot assign to a Operation".to_string()),
+        Expression::Prefix { .. } 
+            => return Err("Cannot assign to a Prefix".to_string()),
     }
 
 
@@ -191,6 +193,9 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 Expression::Operation { .. } 
                     => return Err(
                         "Operations are not iterable".to_string()),
+                Expression::Prefix { .. } 
+                        => return Err(
+                            "Prefix's are not iterable".to_string()),
             };
 
             let Value::List{e: iterator_list} = v 
@@ -234,8 +239,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             if enviornment.get(name).is_some() {
                 return Err("Function '{}' is already defined!".to_string());
             }
-
-
 
             enviornment.insert(name.to_string(), 
                                Value::UserDefFunction { 
@@ -354,6 +357,23 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             Ok(Value::List{e: vals})
         },
+        Expression::Prefix { name, operator, rhs } => {
+            let lhs = match enviornment.get(name) {
+                Some(v) => v.clone(),
+                None => return Err(format!("'{}' is not defined", name))
+            };
+
+            let v = match eval_expression(enviornment, rhs) {
+                Ok(v) => v,
+                Err(e) => return Err(e)
+            };
+
+            let new_val = operate(operator, &lhs, &v)?;
+
+            enviornment.insert(name.clone(), new_val.clone());
+
+            Ok(new_val)
+        }
 
         //_=> Err(format!("unhandled expression: {:?}", expression)),
     }

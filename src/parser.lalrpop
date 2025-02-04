@@ -20,16 +20,6 @@ pub Statement: Statement = {
     
     <name:Identifier> <operator:AssignmentOperator> <rhs:Expression> ";" 
         => Statement::OperatorAssignment{name, operator, rhs},
-    
-    <name:Identifier> "++" ";" 
-        => Statement::OperatorAssignment{name, 
-                                         operator: Operator::Plus, 
-                                         rhs: Expression::Int{v: 1} },
-                                
-    <name:Identifier> "--" ";" 
-        => Statement::OperatorAssignment{name, 
-                                         operator: Operator::Minus, 
-                                         rhs: Expression::Int{v: 1} },
         
     <params:ForLoop> => Statement::For{params},
     <params:IfBranch> => Statement::If{params}, 
@@ -101,6 +91,16 @@ pub Expression: Expression = {
 
     <function:Identifier> "(" <arguments:FunctionArgs> ")" 
         => Expression::Call{function, arguments},
+
+    "++" <name:Identifier> 
+        => Expression::Prefix{name, 
+                              operator: Operator::Plus, 
+                              rhs: Box::new(Expression::Int{v: 1}) },
+                                
+    "--" <name:Identifier>
+        => Expression::Prefix{name, 
+                              operator: Operator::Minus, 
+                              rhs: Box::new(Expression::Int{v: 1}) },
 }
 
 pub FunctionArgs: Vec<Expression> = {

@@ -38,6 +38,7 @@ pub enum Expression {
     Call{function: String, arguments: Vec<Expression>},
 
     Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
+    Prefix{name: String, operator:Operator, rhs: Box<Expression>}
 }
 #[derive(Clone,Debug)] 
 pub struct ForLoop {
