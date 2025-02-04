@@ -16,6 +16,10 @@ pub enum Statement {
     While{condition: Expression, statements: Vec<Statement>},
     
     For{params: ForLoop},
+
+    FunctionDefinition{name: String, 
+                       arguments: Vec<String>, 
+                       statements: Vec<Statement>}
 }
 
 #[derive(Clone,Debug)] 

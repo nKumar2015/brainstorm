@@ -12,3 +12,9 @@ for (x in range(0, 5)) {
 
 print(ys);
 print(p);
+
+fn hello(x){
+    print("hello", x);
+}
+
+hello(5);

@@ -5,7 +5,7 @@ use crate::ast::{
     Operator,
     ListItem, 
     ForLoop,
-    IfBranch
+    IfBranch,
 };
 
 grammar;
@@ -38,6 +38,21 @@ pub Statement: Statement = {
         => Statement::While{condition, statements},
     
     <expression:Expression> ";" => Statement::Expression{expression},
+
+    "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*> "}"
+        => Statement::FunctionDefinition{name, arguments, statements}
+}
+
+pub FunctionDefArgs: Vec<String> = {
+    () => vec![],
+    <argument:Identifier> => vec![argument],
+    <argument:Identifier> "," <tail:FunctionDefArgs> => {
+        let mut args = tail.clone();
+        args.insert(0, argument);
+
+        args
+    }
 }
 
 pub IfBranch: IfBranch = {

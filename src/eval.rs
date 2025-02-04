@@ -229,6 +229,17 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                               &params.iteration_variable_statement)?;
             }*/
         },
+        Statement::FunctionDefinition { name, arguments, statements } => {
+            if enviornment.get(name).is_some() {
+                return Err("Function '{}' is already defined!".to_string());
+            }
+
+            enviornment.insert(name.to_string(), 
+                               Value::UserDefFunction { 
+                                    statements: statements.clone(),
+                                    arguments: arguments.clone(),
+                                });
+        }
 
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
@@ -262,15 +273,37 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
         },
         Expression::Call{function, arguments} =>  {
             let vals = eval_expressions(enviornment, arguments)?;
-            
+
             let Some(v) = enviornment.get(function) 
                 else { return Err(format!("'{}' is not defined", &function)) };
             
-            if let Value::Function{f} = v {
-                f(vals)
-            }else{
-                Err(format!("'{function}' is not a function"))
+            let mut local_env = enviornment.clone();
+
+            match v {
+                Value::Function{f} => {
+                    f(vals)
+                },
+                Value::UserDefFunction { statements, arguments } => {
+                    if vals.len() != arguments.len() {
+                        return Err(format!("Expected {} arguments, got {}", 
+                                            arguments.len(), 
+                                            vals.len()))
+                    }
+                    for (value, name) in vals.iter().zip(arguments.iter()) {
+                        local_env.insert(name.to_string(), value.clone());
+                    }
+                    eval_statements(&mut local_env, statements)?;
+                    
+                    Ok(Value::Null)
+                },
+                _ => Err(format!("'{function}' is not a function"))
             }
+
+            //if let Value::Function{f} = v {
+            //    f(vals)
+            //}else{
+            //    Err(format!("'{function}' is not a function"))
+            //}
         },
         Expression::Operation { lhs, rhs, operator } => {
             let expressions = vec![lhs, rhs];
@@ -415,4 +448,6 @@ pub enum Value {
     #[allow(dead_code)]
     List{e: Vec<Value>},
     Function{f: fn(Vec<Value>) -> Result<Value, String>},
+    #[allow(dead_code)]
+    UserDefFunction{statements: Vec<Statement>, arguments: Vec<String> }
 }
