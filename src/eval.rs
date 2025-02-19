@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 use crate::ast::{Expression, ListItem, Operator, Program, Statement};
 use crate::constants::FP_ERROR_MARGIN;
+use crate::parser::ProgramParser;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
     Program::Body{statements}: &Program) -> Result<(), String> {
@@ -163,7 +166,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             }
         },
         Statement::For{params} => {
-
             let v = 
             match &params.iterate_expression {
                 Expression::List { .. } 
@@ -206,33 +208,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
                 eval_statements(enviornment, &params.statements)?;
             }
-            
-            
-
-            
-            /*
-            match eval_statement(enviornment, &params.initialization_statment) {
-                Ok(()) => (),
-                Err(e) => return Err(e),
-            }
-
-            loop {
-                let b = 
-                    match eval_expression(enviornment, 
-                            &params.iteration_condition) {
-                        Ok(Value::Bool{b}) => b,
-                        Err(e) => return Err(e),
-                        _ => return Err(
-                            "Condition must evaluate to a bool".to_string())
-                    };
-
-                if !b { break; }
-                
-                eval_statements(enviornment, &params.statements)?;
-
-                eval_statement(enviornment, 
-                              &params.iteration_variable_statement)?;
-            }*/
         },
         Statement::FunctionDefinition { name, arguments, 
                                         statements, return_val } => {
@@ -246,8 +221,20 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                                     arguments: arguments.clone(),
                                     return_val: return_val.clone()
                                 });
-        }
+        },
+        Statement::Import{path} => {
+            let file = File::open(path).unwrap();
+            let lines = BufReader::new(file).lines();
+            let mut external_code = String::new();
 
+            for s in lines {
+                external_code.push_str(&s.unwrap());
+            }
+
+            let ast = ProgramParser::new().parse(&external_code).unwrap();
+
+            eval_program(enviornment, &ast)?;
+        }
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 
@@ -373,8 +360,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             enviornment.insert(name.clone(), new_val.clone());
 
             Ok(new_val)
-        }
-
+        },
         //_=> Err(format!("unhandled expression: {:?}", expression)),
     }
 }

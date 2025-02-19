@@ -5,6 +5,7 @@ pub enum Program {
 
 #[derive(Clone,Debug)] 
 pub enum Statement {
+    Import{path: String},
     Expression{expression: Expression},
     Assignment{lhs: Expression, rhs: Expression},
     OperatorAssignment{name: String, 

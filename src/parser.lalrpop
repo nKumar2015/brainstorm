@@ -15,6 +15,8 @@ pub Program: Program = {
 }
 
 pub Statement: Statement = {
+    "import" <path:StringLiteral> ";" => Statement::Import{path},
+
     <lhs:Expression> "=" <rhs:Expression> ";"
         => Statement::Assignment{lhs, rhs},
     
