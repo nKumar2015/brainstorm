@@ -1,13 +1,15 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::env::{args, current_dir};
+use std::path::Path;
 
 use crate::ast::{Expression, ListItem, Operator, Program, Statement};
 use crate::constants::FP_ERROR_MARGIN;
 use crate::parser::ProgramParser;
+use crate::read_file;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
-    Program::Body{statements}: &Program) -> Result<(), String> {
+                    Program::Body{statements}: &Program) 
+                    -> Result<(), String> {
         
         eval_statements(enviornment, statements)
 }
@@ -174,7 +176,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 Expression::Identifier { .. } 
                     => eval_expression(enviornment, 
                                       &params.iterate_expression)?,
-                Expression::Call { ..} 
+                Expression::Call { .. } 
                     => eval_expression(enviornment, 
                                       &params.iterate_expression)?,
                 Expression::Int { .. } 
@@ -183,7 +185,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 Expression::String { .. } 
                     => return Err(
                         "String literals are not iterable".to_string()),
-                Expression::Boolean { ..} 
+                Expression::Boolean { .. } 
                     => return Err(
                         "Boolean literals are not iterable".to_string()),
                 Expression::Float { .. } 
@@ -222,15 +224,74 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                                     return_val: return_val.clone()
                                 });
         },
-        Statement::Import{path} => {
-            let file = File::open(path).unwrap();
-            let lines = BufReader::new(file).lines();
-            let mut external_code = String::new();
+        Statement::Import{path} => {            
+            let external_code = 
+                if path.starts_with('.') {
+                    // Get the provided path to file 
+                    // and the directory the executable was called from
+                    let args: Vec<String> = args().collect();
+                    let cwd = current_dir().unwrap();
 
-            for s in lines {
-                external_code.push_str(&s.unwrap());
-            }
+                    // The provided path
+                    let origin_file = &args[1];
+                    
+                    // replace "." with the current working directory
+                    let full_path = 
+                        origin_file.replacen('.', 
+                                            cwd.to_str().unwrap(),
+                                            1);
 
+                    // Move one level up
+                    let parent_dir 
+                        = Path::new(&full_path).parent().unwrap();
+
+                    // replace the "." from the provided import path with the
+                    // parent directory we found earlier
+                    let full_import_path = 
+                        path.replacen('.', 
+                                    parent_dir.to_str().unwrap(), 
+                                    1);
+                    
+                    // attempt to read that file
+                    match read_file(&full_import_path) {
+                        Ok(f) => f,
+                        Err(_) => 
+                            return Err(format!("Error opening file at {}", 
+                                            full_import_path))
+                    } 
+                } else if path.contains('/'){
+                    match read_file(path) {
+                        Ok(f) => f,
+                        Err(_) => return 
+                            Err(format!("Error opening file at {}", path))
+                    } 
+                } else {
+                    // Get the provided path to file 
+                    // and the directory the executable was called from
+                    let args: Vec<String> = args().collect();
+                    let cwd = current_dir().unwrap();
+
+                    // The provided path
+                    let origin_file = &args[1];
+                    
+                    // replace "." with the current working directory
+                    let full_path = 
+                        origin_file.replacen('.', 
+                                            cwd.to_str().unwrap(),
+                                            1);
+
+                    // Move one level up
+                    let parent_dir 
+                        = Path::new(&full_path).parent().unwrap();
+                    let final_dir 
+                        = format!("{}/{}", parent_dir.to_str().unwrap(), path); 
+                    
+                    match read_file(&final_dir) {
+                        Ok(f) => f,
+                        Err(_) => return 
+                            Err(format!("Error opening file at {}", final_dir))
+                    } 
+                };
             let ast = ProgramParser::new().parse(&external_code).unwrap();
 
             eval_program(enviornment, &ast)?;

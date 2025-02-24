@@ -1,6 +1,6 @@
 x = 0;
 print(++x);
 
-import "/home/nakul/projects/rustlang/src/test2.txt";
+import "test2.txt";
 
 hello();

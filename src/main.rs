@@ -1,7 +1,9 @@
+use std::env::{args, current_dir};
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::collections::HashMap;
+use std::io::Error;
 
 mod ast; 
 mod eval;
@@ -16,7 +18,19 @@ lalrpop_mod!(pub parser);
 
 
 fn main() {
-    let test = read_test();
+    let args: Vec<String> = args().collect();
+    if args.len() != 2 {
+        println!("Usage: {} <filename>", args[0]);
+        return;
+    }
+
+    let path = current_dir().unwrap();
+    println!("The current directory is {}", path.display());
+
+    let file = match read_file(&args[1]) {
+        Ok(file) => file,
+        Err(e) => panic!("{}", e)
+    };
 
     let mut enviornment = HashMap::new();
     enviornment.insert("print".to_string(), 
@@ -30,7 +44,7 @@ fn main() {
 
     println!("AST OUTPUT: \n");
 
-    let ast = parser::ProgramParser::new().parse(&test).unwrap();
+    let ast = parser::ProgramParser::new().parse(&file).unwrap();
     println!("{ast:?}\n");
 
     println!("PROGRAM OUTPUT: \n");
@@ -40,17 +54,26 @@ fn main() {
     println!("{result:?}");
 }
 
-fn read_test() -> String {
-    let f = File::open("src/test.txt").unwrap();
+pub fn read_file(path: &str) -> Result<String, Error> {
+    let f = match File::open(path) {
+        Ok(f) => f,
+        Err(e) => return Err(e)
+    };
+
     let lines = BufReader::new(f).lines();
-    let mut test = String::new();
+    let mut file = String::new();
 
     for s in lines{
-        test.push_str(&s.unwrap());
+        match s {
+            Ok(s) => file.push_str(&s),
+            Err(e) => return Err(e)
+        }
     }
 
-    test
+    Ok(file)
 }
+
+
 
 #[allow(clippy::unnecessary_wraps)]
 fn print_(args: Vec<Value>) -> Result<Value, String> {
