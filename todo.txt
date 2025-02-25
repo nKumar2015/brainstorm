@@ -1,2 +1,1 @@
 * Prevent comments from consuming the next line of code
-* Add support for importing from the RUSTL_LIB variable
