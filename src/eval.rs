@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::env::{args, current_dir};
+use std::env::{args, current_dir, var};
 use std::path::Path;
 
 use crate::ast::{Expression, ListItem, Operator, Program, Statement};
@@ -286,11 +286,36 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                     let final_dir 
                         = format!("{}/{}", parent_dir.to_str().unwrap(), path); 
                     
-                    match read_file(&final_dir) {
-                        Ok(f) => f,
-                        Err(_) => return 
-                            Err(format!("Error opening file at {}", final_dir))
-                    } 
+                    let result = read_file(&final_dir);
+
+                    // If the file is present in the same directory, use that
+                    #[allow(clippy::unnecessary_unwrap)]
+                    if result.is_ok() {
+                        result.unwrap()
+                    }else {
+                        // If the file is not present, check if the file exists 
+                        // in the paths listedn inthe RUSTL_LIB env var 
+                        let var = var("RUSTL_LIB");
+                        let mut out = String::new();
+                        if var.is_ok(){
+                            let res_val = var.unwrap();
+                            let paths = res_val.split(':');
+                            for dir in paths {
+                                let lib_path = format!("{}/{}", dir, path);
+                                let res = read_file(&lib_path);
+
+                                if res.is_ok() {
+                                    out = res.unwrap();
+                                    break;
+                                }
+                            }
+                        }
+                        if out.is_empty() {
+                            return Err(format!("Error opening file at {}", 
+                                       path));
+                        }
+                        out.to_string()
+                    }
                 };
             let ast = ProgramParser::new().parse(&external_code).unwrap();
 
