@@ -1,0 +1,25 @@
+x = 1.0;
+y = 2.0;
+
+println(x + y);
+println(x - y);
+println(x * y);
+println(x / y);
+println(x < y);
+println(x > y);
+println(x == y);
+println(x != y);
+
+x = 1.0;
+
+x *= 5.0;
+println(x);
+
+x /= 5.0;
+println(x);
+
+x -= 5.0;
+println(x);
+
+x += 5.0;
+println(x);

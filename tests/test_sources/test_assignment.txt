@@ -1,0 +1,17 @@
+x = 0;
+println(x);
+
+x = "Hello, World!";
+println(x);
+
+x = true;
+println(x);
+
+x = 2.03;
+println(x);
+
+x = 'c';
+println(x);
+
+x = [1, 2, 3, 4, ];
+println(x);

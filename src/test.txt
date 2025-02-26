@@ -1,5 +1,5 @@
 x = 0;
-print(++x);
+println(++x);
 
 import "test2.txt";
 

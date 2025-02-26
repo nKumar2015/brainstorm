@@ -1,9 +1,7 @@
-use std::env::{args, current_dir};
+use std::env::args;
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader, Error};
 use std::collections::HashMap;
-use std::io::Error;
 
 mod ast; 
 mod eval;
@@ -24,17 +22,14 @@ fn main() {
         return;
     }
 
-    let path = current_dir().unwrap();
-    println!("The current directory is {}", path.display());
-
     let file = match read_file(&args[1]) {
         Ok(file) => file,
         Err(e) => panic!("{}", e)
     };
 
     let mut enviornment = HashMap::new();
-    enviornment.insert("print".to_string(), 
-        Value::Function{f: print_});
+    enviornment.insert("println".to_string(), 
+        Value::Function{f: println_});
 
     enviornment.insert("range".to_string(), 
         Value::Function{f: range});
@@ -42,16 +37,19 @@ fn main() {
     enviornment.insert("range_step".to_string(), 
         Value::Function{f: range_step});
 
-    println!("AST OUTPUT: \n");
+    //println!("AST OUTPUT: \n");
 
     let ast = parser::ProgramParser::new().parse(&file).unwrap();
-    println!("{ast:?}\n");
-
-    println!("PROGRAM OUTPUT: \n");
+    
+    //println!("{ast:?}\n");
+    //println!("PROGRAM OUTPUT: \n");
 
     let result = eval::eval_program(&mut enviornment, &ast);
 
-    println!("{result:?}");
+    match result {
+        Ok(_) => (),
+        Err(s) => panic!("{s}"),
+    }
 }
 
 pub fn read_file(path: &str) -> Result<String, Error> {
@@ -76,8 +74,55 @@ pub fn read_file(path: &str) -> Result<String, Error> {
 
 
 #[allow(clippy::unnecessary_wraps)]
+fn println_(args: Vec<Value>) -> Result<Value, String> {
+    for arg in args {
+        match arg {
+            Value::Null => println!("Null"),
+            Value::Int { v } => println!("{}", v),
+            Value::Str { s } => println!("{}", s),
+            Value::Bool { b } => println!("{}", b),
+            Value::Float { f } => println!("{}", f),
+            Value::Char { c } => println!("{}", c),
+            Value::List { e } => {
+                print!("[");
+                for (idx, val) in e.iter().enumerate() {
+                    print_(vec![val.clone()])?;
+                    if idx != e.len() - 1 {
+                        print!(", ");
+                    }
+                }
+                println!("]");
+            },
+            Value::Function { f } => println!("{:?}", f),
+            Value::UserDefFunction { .. } => println!("FuncDef")
+        }
+    }
+    Ok(Value::Null)
+}
+
 fn print_(args: Vec<Value>) -> Result<Value, String> {
-    println!("{args:?}");
+    for arg in args {
+        match arg {
+            Value::Null => print!("Null"),
+            Value::Int { v } => print!("{}", v),
+            Value::Str { s } => print!("{}", s),
+            Value::Bool { b } => print!("{}", b),
+            Value::Float { f } => print!("{}", f),
+            Value::Char { c } => print!("{}", c),
+            Value::List { e } => {
+                print!("[");
+                for (idx, val) in e.iter().enumerate() {
+                    print_(vec![val.clone()])?;
+                    if idx != e.len() - 1 {
+                        print!(", ");
+                    }
+                }
+                print!("]");
+            },
+            Value::Function { f } => print!("{:?}", f),
+            Value::UserDefFunction { .. } => print!(""),
+        }
+    }
     Ok(Value::Null)
 }
 
