@@ -14,23 +14,21 @@ pub fn get_program_output(file: &str) -> (String, String){
     let mut log = String::new();
     log.push_str(match str::from_utf8(&output.stdout) {
         Ok(val) => val,
-        Err(_) => panic!("got non UTF-8 data from stderr"),
+        Err(..) => panic!("got non UTF-8 data from stderr"),
     });
 
     let mut errors = String::new();
     errors.push_str(match str::from_utf8(&output.stderr) {
         Ok(val) => val,
-        Err(_) => panic!("got non UTF-8 data from stderr"),
+        Err(..) => panic!("got non UTF-8 data from stderr"),
     });
 
     (log, errors)
 }
 
 pub fn read_file(path: &str) -> String {
-    let file = match std::fs::read_to_string(path){
+    match std::fs::read_to_string(path){
         Ok(s) => s,
         Err(e) => panic!("{}", e)
-    };
-
-    file
+    }
 }

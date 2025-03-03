@@ -4,3 +4,5 @@ println(++x);
 import "test2.txt";
 
 hello();
+
+function();

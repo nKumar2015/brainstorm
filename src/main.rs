@@ -30,25 +30,25 @@ fn main() {
     let mut enviornment = HashMap::new();
     enviornment.insert("println".to_string(), 
         Value::Function{f: println_});
+    
+    enviornment.insert("print".to_string(), 
+        Value::Function{f: print_});
 
     enviornment.insert("range".to_string(), 
         Value::Function{f: range});
 
     enviornment.insert("range_step".to_string(), 
         Value::Function{f: range_step});
-
-    //println!("AST OUTPUT: \n");
-
+        
     let ast = parser::ProgramParser::new().parse(&file).unwrap();
     
-    //println!("{ast:?}\n");
-    //println!("PROGRAM OUTPUT: \n");
-
     let result = eval::eval_program(&mut enviornment, &ast);
 
-    match result {
-        Ok(_) => (),
-        Err(s) => panic!("{s}"),
+    match &result {
+        Ok(()) => (),
+        Err(s) => {
+            println!("\nError: {s}\n\nAST:\n{:?}\n", ast);
+        },
     }
 }
 

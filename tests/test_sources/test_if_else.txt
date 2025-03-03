@@ -1,0 +1,33 @@
+x = 10;
+y = 5;
+
+if(x > 5) {
+    println(x);
+}
+
+if(x < 5) {
+    println(x);
+}else{
+    println("else");
+}
+
+
+if(x > y) {
+    println(x);
+}
+
+if(x < y) {
+    println(x);
+}else{
+    println(y);
+}
+
+c = 10;
+
+if(x < 5){
+    c = 1;
+}else{
+    c = 2;
+}
+
+println(c);

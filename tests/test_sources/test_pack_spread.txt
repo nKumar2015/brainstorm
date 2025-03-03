@@ -1,0 +1,8 @@
+x = [1, 2, 3, 4, 5];
+y = [x.., 6, 7];
+println(y);
+
+[a, b, ..z] = y;
+println(a);
+println(b);
+println(z); 
