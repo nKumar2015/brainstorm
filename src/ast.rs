@@ -21,7 +21,7 @@ pub enum Statement {
     FunctionDefinition{name: String, 
                        arguments: Vec<String>, 
                        statements: Vec<Statement>,
-                       return_val: Option<String> }
+                       return_expression: Option<Expression> }
 }
 
 #[derive(Clone,Debug)] 

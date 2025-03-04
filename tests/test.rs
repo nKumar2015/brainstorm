@@ -3,7 +3,8 @@ mod common;
 #[cfg(test)]
 mod tests {
     use crate::common;
-
+    use std::env;
+    
     #[test]
     fn test_assignment() {
         let (log, errors) 
@@ -97,6 +98,51 @@ mod tests {
         
         let expected_output
             = common::read_file("tests/test_output/test_pack_spread.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+    #[test]
+    fn test_user_function(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_user_function.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_user_function.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+    #[test]
+    fn test_import(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_import.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_import.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+    #[test]
+    fn test_import_env(){
+        env::set_var("RUSTL_LIB", "/home/nakul/projects/rustlang/tests/common");
+
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_import_env.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_import_env.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+    #[test]
+    fn test_import_absolute(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_import_absolute.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_import_absolute.output");
         
         assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
     }

@@ -1,0 +1,4 @@
+import "test_user_function.txt";
+
+hello();
+println(hello2());

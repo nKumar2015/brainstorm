@@ -1,0 +1,10 @@
+fn hello(){
+    println("Hello");
+}
+
+fn hello2(){
+    return "out";
+}
+
+hello();
+println(hello2());

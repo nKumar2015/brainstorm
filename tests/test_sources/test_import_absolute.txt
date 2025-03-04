@@ -1,0 +1,3 @@
+import "/home/nakul/projects/rustlang/tests/common/env_import_file.txt";
+
+env_import();

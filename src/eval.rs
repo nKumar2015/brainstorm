@@ -8,10 +8,10 @@ use crate::parser::ProgramParser;
 use crate::read_file;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
-                    Program::Body{statements}: &Program) 
+                    Program::Body{statements}: &Program, importing: bool) 
                     -> Result<(), String> {
         
-        eval_statements(enviornment, statements)
+        eval_statements(enviornment, statements, importing)
 }
 
 fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
@@ -101,14 +101,14 @@ fn assign_list(enviornment: &mut HashMap<String, Value>, lhs: Vec<ListItem>,
 }
 
 fn eval_statement(enviornment: &mut HashMap<String, Value>, 
-    statement: &Statement) -> Result<(), String> {
+    statement: &Statement, importing: bool) -> Result<(), String> {
     match statement {
         Statement::Expression{expression} => {
-            eval_expression(enviornment, expression)?;
+            eval_expression(enviornment, expression, importing)?;
         },
         Statement::Assignment{lhs, rhs} => {
             let v = 
-                match eval_expression(enviornment, rhs) {
+                match eval_expression(enviornment, rhs, importing) {
                     Ok(v) => v,
                     Err(e) => return Err(e),
                 };
@@ -122,7 +122,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                     None => return Err(format!("'{}' is not defined", &name))
                 };
 
-            let rhs = match eval_expression(enviornment, rhs) {
+            let rhs = match eval_expression(enviornment, rhs, importing) {
                     Ok(v) => v,
                     Err(e) => return Err(e)
                 };
@@ -136,14 +136,14 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             enviornment.insert(name.clone(), v);
         },
         Statement::If{params} => {
-            match eval_expression(enviornment, &params.condition) {
+            match eval_expression(enviornment, &params.condition, importing) {
                 Ok(Value::Bool{b: true}) 
-                    => eval_statements(enviornment, &params.statements)?,
+                    => eval_statements(enviornment, &params.statements, importing)?,
                 Ok(Value::Bool{b: false}) 
                     => {
                         if let Some(else_statements) 
                             = &params.else_statements { 
-                            eval_statements(enviornment, else_statements)?;
+                            eval_statements(enviornment, else_statements, importing)?;
                         }
                     },
                 _ => return Err("Condition must be of type 'bool'".to_string()),
@@ -152,7 +152,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
         Statement::While{condition, statements} => {            
             loop{
                 let b = 
-                    match eval_expression(enviornment, condition) {
+                    match eval_expression(enviornment, condition, importing) {
                         Ok(Value::Bool{b}) => b ,
                         Err(e) => return Err(e),
                         _ => return Err(
@@ -162,7 +162,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 if !b { break; }
                 
                 #[allow(clippy::question_mark)]
-                if let Err(e) = eval_statements(enviornment, statements) {
+                if let Err(e) = eval_statements(enviornment, statements, importing) {
                     return Err(e);
                 }
             }
@@ -172,13 +172,13 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             match &params.iterate_expression {
                 Expression::List { .. } 
                     => eval_expression(enviornment, 
-                                      &params.iterate_expression)?,
+                                      &params.iterate_expression, importing)?,
                 Expression::Identifier { .. } 
                     => eval_expression(enviornment, 
-                                      &params.iterate_expression)?,
+                                      &params.iterate_expression, importing)?,
                 Expression::Call { .. } 
                     => eval_expression(enviornment, 
-                                      &params.iterate_expression)?,
+                                      &params.iterate_expression, importing)?,
                 Expression::Int { .. } 
                     => return Err(
                         "Integer literals are not iterable".to_string()),
@@ -208,11 +208,11 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             for list_item in iterator_list {
                 enviornment.insert(params.loop_var.clone(), list_item);
 
-                eval_statements(enviornment, &params.statements)?;
+                eval_statements(enviornment, &params.statements, importing)?;
             }
         },
         Statement::FunctionDefinition { name, arguments, 
-                                        statements, return_val } => {
+                                        statements, return_expression } => {
             if enviornment.get(name).is_some() {
                 return Err("Function '{}' is already defined!".to_string());
             }
@@ -221,26 +221,29 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                                Value::UserDefFunction { 
                                     statements: statements.clone(),
                                     arguments: arguments.clone(),
-                                    return_val: return_val.clone()
+                                    return_expression: return_expression.clone()
                                 });
         },
-        Statement::Import{path} => {            
+        Statement::Import{path} => {    
+            // Get the provided path to file 
+            // and the directory the executable was called from
+
+            let args: Vec<String> = args().collect();
+            let cwd = current_dir().unwrap();
+            
+            // The provided path
+            let origin_file: &String = &args[1];
+
+            // replace "." with the current working directory
+            let mut full_path = origin_file.clone();
+            if full_path.starts_with(".") {
+                full_path = origin_file.replacen('.', 
+                                    cwd.to_str().unwrap(),
+                                    1);
+            }
+
             let external_code = 
-                if path.starts_with('.') {
-                    // Get the provided path to file 
-                    // and the directory the executable was called from
-                    let args: Vec<String> = args().collect();
-                    let cwd = current_dir().unwrap();
-
-                    // The provided path
-                    let origin_file = &args[1];
-                    
-                    // replace "." with the current working directory
-                    let full_path = 
-                        origin_file.replacen('.', 
-                                            cwd.to_str().unwrap(),
-                                            1);
-
+                if path.starts_with('.') {                    
                     // Move one level up
                     let parent_dir 
                         = Path::new(&full_path).parent().unwrap();
@@ -266,26 +269,11 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                             Err(format!("Error opening file at {}", path))
                     } 
                 } else {
-                    // Get the provided path to file 
-                    // and the directory the executable was called from
-                    let args: Vec<String> = args().collect();
-                    let cwd = current_dir().unwrap();
-
-                    // The provided path
-                    let origin_file = &args[1];
-                    
-                    // replace "." with the current working directory
-                    let full_path = 
-                        origin_file.replacen('.', 
-                                            cwd.to_str().unwrap(),
-                                            1);
-
                     // Move one level up
                     let parent_dir 
                         = Path::new(&full_path).parent().unwrap();
                     let final_dir 
                         = format!("{}/{}", parent_dir.to_str().unwrap(), path); 
-                    
                     let result = read_file(&final_dir);
 
                     // If the file is present in the same directory, use that
@@ -319,7 +307,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                 };
             let ast = ProgramParser::new().parse(&external_code).unwrap();
 
-            eval_program(enviornment, &ast)?;
+            eval_program(enviornment, &ast, true)?;
         }
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
@@ -328,17 +316,17 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_statements(enviornment: &mut HashMap<String, Value>, 
-              statements: &Vec<Statement>) -> Result<(), String> {
+              statements: &Vec<Statement>, importing: bool) -> Result<(), String> {
     
     for statement in statements {
-        eval_statement(enviornment, statement)?;
+        eval_statement(enviornment, statement, importing)?;
     }
 
     Ok(())
 }
 
 fn eval_expression(enviornment: &mut HashMap<String, Value>, 
-    expression: &Expression) -> Result<Value, String>{
+    expression: &Expression, importing: bool) -> Result<Value, String>{
     match expression {
         Expression::Int{v} => Ok(Value::Int{v: *v}),
         Expression::String{ s } => Ok(Value::Str{s: s.clone()}),
@@ -352,7 +340,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             }
         },
         Expression::Call{function, arguments} =>  {
-            let vals = eval_expressions(enviornment, arguments)?;
+            let vals = eval_expressions(enviornment, arguments, importing)?;
 
             let Some(v) = enviornment.get(function) 
                 else { return Err(format!("'{}' is not defined", &function)) };
@@ -361,10 +349,15 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             match v {
                 Value::Function{f} => {
+                    if importing{
+                        if function == "print" || function == "println" {
+                            return Ok(Value::Null);
+                        }
+                    }
                     f(vals)
                 },
                 Value::UserDefFunction {statements, 
-                                        arguments , return_val} => {
+                                        arguments , return_expression} => {
                     if vals.len() != arguments.len() {
                         return Err(format!("Expected {} arguments, got {}", 
                                             arguments.len(), 
@@ -373,14 +366,14 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     for (value, name) in vals.iter().zip(arguments.iter()) {
                         local_env.insert(name.to_string(), value.clone());
                     }
-                    eval_statements(&mut local_env, statements)?;
+                    eval_statements(&mut local_env, statements, importing)?;
                     
-                    match return_val {
-                        Some(name) => {
-                            match local_env.get(name) {
-                                Some(v) => Ok(v.clone()),
-                                None 
-                                    => Err(format!("'{}' is not defined", name))
+                    match return_expression {
+                        Some(return_exp) => {
+                            match eval_expression(&mut enviornment.clone(), return_exp, importing) {
+                                Ok(v) => Ok(v.clone()),
+                                Err(e) 
+                                    => Err(e)
                             }
                         },
                         None => Ok(Value::Null)
@@ -395,7 +388,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             let mut vals = vec![];
 
             for expression in expressions {
-                match eval_expression(enviornment, expression) {
+                match eval_expression(enviornment, expression, importing) {
                     Ok(v) => vals.push(v),
                     Err(e) => return Err(e),
                 }
@@ -412,7 +405,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             
             for item in items {
                 let v = 
-                    match eval_expression(enviornment, &item.expression) {
+                    match eval_expression(enviornment, &item.expression, importing) {
                         Ok(v) => v,
                         Err(e) => return Err(e)
                     };
@@ -436,7 +429,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 None => return Err(format!("'{}' is not defined", name))
             };
 
-            let v = match eval_expression(enviornment, rhs) {
+            let v = match eval_expression(enviornment, rhs, importing) {
                 Ok(v) => v,
                 Err(e) => return Err(e)
             };
@@ -452,11 +445,11 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_expressions(enviornment: &mut HashMap<String, Value>, 
-    expressions: &Vec<Expression>) -> Result<Vec<Value>, String> {
+    expressions: &Vec<Expression>, importing: bool) -> Result<Vec<Value>, String> {
         let mut vals = vec![];
 
         for expression in expressions {
-            match eval_expression(enviornment, expression) {
+            match eval_expression(enviornment, expression, importing) {
                 Ok(v) => vals.push(v),
                 Err(e) => return Err(e),
             }
@@ -551,5 +544,5 @@ pub enum Value {
     Function{f: fn(Vec<Value>) -> Result<Value, String>},
     #[allow(dead_code)]
     UserDefFunction{statements: Vec<Statement>, arguments: Vec<String>, 
-                    return_val: Option<String> }
+                    return_expression: Option<Expression> }
 }

@@ -1,0 +1,3 @@
+fn env_import(){
+    println("env");
+}

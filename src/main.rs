@@ -42,7 +42,7 @@ fn main() {
         
     let ast = parser::ProgramParser::new().parse(&file).unwrap();
     
-    let result = eval::eval_program(&mut enviornment, &ast);
+    let result = eval::eval_program(&mut enviornment, &ast, false);
 
     match &result {
         Ok(()) => (),
