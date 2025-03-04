@@ -1,0 +1,17 @@
+x = 5;
+
+if(x > 10){
+    println("greater");
+}elif(x == 5){
+    println("equal");
+}else{
+    println("less");
+}
+
+if(x > 10){
+    println("greater");
+}elif(x < 5){
+    println("less");
+}else{
+    println("between");
+}

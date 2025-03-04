@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::env::{args, current_dir, var};
 use std::path::Path;
 
-use crate::ast::{Expression, ListItem, Operator, Program, Statement};
+use crate::ast::{Expression, IfBranch, ListItem, Operator, Program, Statement};
 use crate::constants::FP_ERROR_MARGIN;
 use crate::parser::ProgramParser;
 use crate::read_file;
@@ -144,13 +144,27 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             match eval_expression(enviornment, &params.condition, importing) {
                 Ok(Value::Bool{b: true}) 
                     => eval_statements(enviornment, &params.statements, importing)?,
-                Ok(Value::Bool{b: false}) 
-                    => {
+                Ok(Value::Bool{b: false}) => {
+                    let (elif_conditions, elif_statements ) = &params.elif_data;
+                    if elif_conditions.len() > 0 {
+                        let condition = elif_conditions[0].clone();
+                        let statement = elif_statements[0].clone();
+
+                        let next_iter = IfBranch{
+                            condition: condition,
+                            statements: statement,
+                            else_statements: params.else_statements.clone(),
+                            elif_data: (elif_conditions[1..].to_vec(), elif_statements[1..].to_vec())
+                        };
+
+                        eval_statement(enviornment, &Statement::If{params: next_iter}, importing)?
+                    }else{
                         if let Some(else_statements) 
                             = &params.else_statements { 
                             eval_statements(enviornment, else_statements, importing)?;
                         }
-                    },
+                    }
+                },
                 _ => return Err("Condition must be of type 'bool'".to_string()),
             }
         },

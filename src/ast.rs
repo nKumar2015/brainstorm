@@ -54,7 +54,8 @@ pub struct ForLoop {
 pub struct IfBranch {
     pub condition: Expression,
     pub statements: Vec<Statement>,
-    pub else_statements: Option<Vec<Statement>>
+    pub else_statements: Option<Vec<Statement>>,
+    pub elif_data: (Vec<Expression>, Vec<Vec<Statement>>),
 }
 
 #[derive(Clone,Debug)] 

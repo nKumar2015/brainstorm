@@ -51,20 +51,55 @@ pub FunctionDefArgs: Vec<String> = {
     }
 }
 
+pub elif_branches: (Vec<Expression>, Vec<Vec<Statement>>) = {
+    "elif" "(" <condition:Expression> ")"
+    "{" <statements:Statement*>"}" => (vec![condition], vec![statements]),
+
+    "elif" "(" <condition:Expression> ")"
+    "{" <statements:Statement*>"}" <tail:elif_branches> => {
+        let(mut conds, mut stmnts) = tail.clone();
+
+        conds.insert(0, condition);
+        stmnts.insert(0, statements);
+
+        (conds, stmnts)
+    }
+
+}
+
+
 pub IfBranch: IfBranch = {
     "if" "(" <condition:Expression> ")" 
+    "{" <statements:Statement*> "}"
+    <elif_data:elif_branches>
+        => IfBranch{condition, 
+                    statements, 
+                    else_statements: None,
+                    elif_data },
+
+    "if" "(" <condition:Expression> ")" 
     "{" <statements:Statement*> "}" 
+    <elif_data:elif_branches>
     "else" "{" <else_statements:Statement*> "}" 
         => IfBranch{condition, 
                     statements, 
-                    else_statements: Some(else_statements) },
-    
+                    else_statements: Some(else_statements),
+                    elif_data },   
+
     "if" "(" <condition:Expression> ")" 
-    "{" <statements:Statement*> "}" 
+    "{" <statements:Statement*> "}"
         => IfBranch{condition, 
                     statements, 
-                    else_statements: None }
-    
+                    else_statements: None,
+                    elif_data: (vec![], vec![]) },
+
+    "if" "(" <condition:Expression> ")" 
+    "{" <statements:Statement*> "}"
+    "else" "{" <else_statements:Statement*> "}" 
+        => IfBranch{condition, 
+                    statements, 
+                    else_statements: Some(else_statements),
+                    elif_data: (vec![], vec![]) },
 }
 
 pub ForLoop: ForLoop = {
