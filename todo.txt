@@ -1,3 +1,2 @@
 * Prevent comments from consuming the next line of code
 * add support for elif statements
-* add support for list indexing

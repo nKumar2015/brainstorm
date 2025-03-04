@@ -103,6 +103,9 @@ pub Expression: Expression = {
         => Expression::Prefix{name, 
                               operator: Operator::Minus, 
                               rhs: Box::new(Expression::Int{v: 1}) },
+    
+    <name:Identifier> "[" <idx_exp:Expression> "]"
+        => Expression::Index{name, idx_exp: Box::new(idx_exp)}
 }
 
 pub FunctionArgs: Vec<Expression> = {
@@ -159,6 +162,7 @@ Identifier: String = {
 
 IntLiteral: i32 = {
     <s:r"[0-9]+"> => s.parse().unwrap(),
+    <s:r"-[0-9]+"> => s.parse().unwrap(),
 }
 
 FloatLiteral: f64 = {

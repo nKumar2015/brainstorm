@@ -32,6 +32,10 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             };
 
             assign_list(enviornment, items, new_items)?;
+        },
+
+        Expression::Index { .. } => {
+            todo!()
         }
 
         Expression::Int { .. } 
@@ -50,6 +54,7 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             => return Err("Cannot assign to a Operation".to_string()),
         Expression::Prefix { .. } 
             => return Err("Cannot assign to a Prefix".to_string()),
+            
     }
 
 
@@ -198,8 +203,11 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                     => return Err(
                         "Operations are not iterable".to_string()),
                 Expression::Prefix { .. } 
-                        => return Err(
-                            "Prefix's are not iterable".to_string()),
+                    => return Err(
+                        "Prefix's are not iterable".to_string()),
+                Expression::Index { .. } 
+                    => return Err(
+                        "Indexes are not iterable".to_string()) 
             };
 
             let Value::List{e: iterator_list} = v 
@@ -440,6 +448,71 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             Ok(new_val)
         },
+        Expression::Index { name, idx_exp } => {
+            let var = match enviornment.get(name) {
+                Some(v) => v,
+                None => return Err(format!("'{}' is not defined", name)),
+            };
+
+            let exp_res = match eval_expression(&mut enviornment.clone(), &idx_exp, importing){
+                Ok(v) => v,
+                Err(e) => return Err(e),
+            };
+
+            let idx = match exp_res {
+                Value::Null => todo!(),
+                Value::Int { v } => v,
+                Value::Str { .. } => todo!(),
+                Value::Bool { .. } => todo!(),
+                Value::Float { .. } => todo!(),
+                Value::Char { .. } => todo!(),
+                Value::List { .. } => todo!(),
+                Value::Function { .. } => todo!(),
+                Value::UserDefFunction { .. } => todo!(),
+            };
+
+            match var {
+                Value::List { e } => {
+                    let usize_idx = idx.abs() as usize;
+
+                    if usize_idx > e.len() {
+                        Err(format!("Index {} is out of bounds", idx))
+                    }else{
+                        if idx < 0 {
+                            Ok(e[e.len() - usize_idx].clone())
+                        }else{
+                            Ok(e[usize_idx].clone())
+                        }
+                    }
+                },
+                Value::Str { s } => {             
+                    let usize_idx = idx.abs() as usize;
+                    let mut chars = s.chars();
+                    let length = chars.clone().count();
+
+                    if usize_idx > length {
+                        Err(format!("Index {} is out of bounds", idx))
+                    }else{
+                        if idx < 0 {
+                            Ok(Value::Char{ 
+                                c: chars.nth(length - usize_idx)
+                                    .expect("Err getting char from string")})
+                        }else {
+                            Ok(Value::Char{ 
+                                c: chars.nth(usize_idx)
+                                    .expect("Err getting char from string")})
+                        }
+                    }
+                },
+                Value::Null => todo!(),
+                Value::Int { .. } => return Err("Cannot index Int".to_string()),
+                Value::Bool { .. } => return Err("Cannot index Boolean".to_string()),
+                Value::Char { .. } => return Err("Cannot index Char".to_string()),
+                Value::Function { .. } => return Err("Cannot index Function".to_string()),
+                Value::UserDefFunction { .. } => return Err("Cannot index Function".to_string()),
+                Value::Float { .. } => return Err("Cannot index Float".to_string()),
+            }
+        }
         //_=> Err(format!("unhandled expression: {:?}", expression)),
     }
 }

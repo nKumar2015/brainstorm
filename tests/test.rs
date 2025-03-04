@@ -147,4 +147,26 @@ mod tests {
         assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
     }
 
+    #[test]
+    fn test_list_indexing(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_list_indexing.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_list_indexing.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+    #[test]
+    fn test_string_indexing(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_string_indexing.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_string_indexing.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
 }
