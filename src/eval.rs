@@ -34,8 +34,47 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             assign_list(enviornment, items, new_items)?;
         },
 
-        Expression::Index { .. } => {
-            todo!()
+        Expression::Index { name, idx_exp} => {
+            let var = match enviornment.get(&name) {
+                Some(v) => v,
+                None => return Err(format!("'{}' is not defined", name)),
+            };
+
+            let exp_res = match eval_expression(&mut enviornment.clone(), &idx_exp, false){
+                Ok(v) => v,
+                Err(e) => return Err(e),
+            };
+
+            let mut list = match var {
+                Value::List { e } => e.clone(),
+                Value::Str { .. } => return Err("Cannot assign to String Index".to_string()),
+                Value::Null => return Err("Cannot index Null".to_string()),
+                Value::Int { .. } => return Err("Cannot index Int".to_string()),
+                Value::Bool { .. } => return Err("Cannot index Boolean".to_string()),
+                Value::Char { .. } => return Err("Cannot index Char".to_string()),
+                Value::Function { .. } => return Err("Cannot index Function".to_string()),
+                Value::UserDefFunction { .. } => return Err("Cannot index Function".to_string()),
+                Value::Float { .. } => return Err("Cannot index Float".to_string()),
+            };
+
+            let idx = match exp_res {
+                Value::Int { v } => v,
+                _ => return Err("Index must be of type int".to_string()) 
+            };
+
+            let usize_idx = idx.abs() as usize;
+            let length = list.len();
+            if usize_idx > length {
+                return Err(format!("Index {} is out of bounds", idx));
+            }else{
+                if idx < 0 {
+                    list[length - usize_idx] = rhs;
+                }else{
+                    list[usize_idx] = rhs
+                }
+            }
+
+            enviornment.insert(name, Value::List { e: list });
         }
 
         Expression::Int { .. } 
@@ -474,15 +513,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             };
 
             let idx = match exp_res {
-                Value::Null => todo!(),
                 Value::Int { v } => v,
-                Value::Str { .. } => todo!(),
-                Value::Bool { .. } => todo!(),
-                Value::Float { .. } => todo!(),
-                Value::Char { .. } => todo!(),
-                Value::List { .. } => todo!(),
-                Value::Function { .. } => todo!(),
-                Value::UserDefFunction { .. } => todo!(),
+                _ => return Err("Index must be of type int".to_string()) 
             };
 
             match var {
@@ -518,7 +550,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                         }
                     }
                 },
-                Value::Null => todo!(),
+                Value::Null => return Err("Cannot index Null".to_string()),
                 Value::Int { .. } => return Err("Cannot index Int".to_string()),
                 Value::Bool { .. } => return Err("Cannot index Boolean".to_string()),
                 Value::Char { .. } => return Err("Cannot index Char".to_string()),

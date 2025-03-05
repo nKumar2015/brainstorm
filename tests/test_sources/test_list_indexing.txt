@@ -6,3 +6,7 @@ println(list[-1]);
 for(i in range(0, 6)){
     println(list[i]);
 }
+
+list[0] = 10;
+println(list[0]);
+println(list);
