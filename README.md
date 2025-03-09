@@ -13,7 +13,9 @@ Importing functions
 Importing from directories through ENV variables
 Array packing/spreading
 String/array indexing
+List comprehensions
 
 #### Planned Features:
 Switch to strict typing
-
+Lambda functions
+Support for objects and enums
