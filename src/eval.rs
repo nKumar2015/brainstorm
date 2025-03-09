@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::env::{args, current_dir, var};
+use std::env::{ args, current_dir, var};
 use std::path::Path;
 
 use crate::ast::{Expression, IfBranch, ListItem, Operator, Program, Statement};
@@ -19,12 +19,11 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
 
     match lhs {
         Expression::Identifier { name } => {
-            if name == "_" {
-                return Ok(());
-            }
-            enviornment.insert(name.clone(), rhs);
+                    if name == "_" {
+                        return Ok(());
+                    }
+                    enviornment.insert(name.clone(), rhs);
         },
-        
         Expression::List { items } => {
             let Value::List{e: new_items} = rhs 
             else { 
@@ -33,50 +32,57 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
 
             assign_list(enviornment, items, new_items)?;
         },
-
         Expression::Index { name, idx_exp} => {
-            let var = match enviornment.get(&name) {
-                Some(v) => v,
-                None => return Err(format!("'{}' is not defined", name)),
-            };
+            let Some(var) = enviornment.get(&name) 
+                else { return Err(format!("'{}' is not defined", name)) };
+            
 
-            let exp_res = match eval_expression(&mut enviornment.clone(), &idx_exp, false){
-                Ok(v) => v,
-                Err(e) => return Err(e),
+            let exp_res = 
+                match eval_expression(&mut enviornment.clone(), 
+                          &idx_exp, false){
+                    Ok(v) => v,
+                    Err(e) => return Err(e),
             };
 
             let mut list = match var {
                 Value::List { e } => e.clone(),
-                Value::Str { .. } => return Err("Cannot assign to String Index".to_string()),
-                Value::Null => return Err("Cannot index Null".to_string()),
-                Value::Int { .. } => return Err("Cannot index Int".to_string()),
-                Value::Bool { .. } => return Err("Cannot index Boolean".to_string()),
-                Value::Char { .. } => return Err("Cannot index Char".to_string()),
-                Value::Function { .. } => return Err("Cannot index Function".to_string()),
-                Value::UserDefFunction { .. } => return Err("Cannot index Function".to_string()),
-                Value::Float { .. } => return Err("Cannot index Float".to_string()),
+
+                Value::Str { .. } 
+                    => return Err("Cannot assign to String Index".to_string()),
+                Value::Null 
+                    => return Err("Cannot index Null".to_string()),
+                Value::Int { .. } 
+                    => return Err("Cannot index Int".to_string()),
+                Value::Bool { .. } 
+                    => return Err("Cannot index Boolean".to_string()),
+                Value::Char { .. } 
+                    => return Err("Cannot index Char".to_string()),
+                Value::Function { .. } 
+                    => return Err("Cannot index Function".to_string()),
+                Value::UserDefFunction { .. } 
+                    => return Err("Cannot index Function".to_string()),
+                Value::Float { .. } 
+                    => return Err("Cannot index Float".to_string()),
             };
 
-            let idx = match exp_res {
-                Value::Int { v } => v,
-                _ => return Err("Index must be of type int".to_string()) 
-            };
+            let Value::Int { v: idx } = exp_res 
+                else { return Err("Index must be of type int".to_string()) };
 
-            let usize_idx = idx.abs() as usize;
+            let usize_idx = idx.unsigned_abs() as usize;
             let length = list.len();
             if usize_idx > length {
                 return Err(format!("Index {} is out of bounds", idx));
-            }else{
-                if idx < 0 {
-                    list[length - usize_idx] = rhs;
-                }else{
-                    list[usize_idx] = rhs
-                }
             }
+
+            if idx < 0 {
+                list[length - usize_idx] = rhs;
+            }else{
+                list[usize_idx] = rhs;
+            }
+            
 
             enviornment.insert(name, Value::List { e: list });
         }
-
         Expression::Int { .. } 
             => return Err("Cannot assign to a Integer literal".to_string()),
         Expression::String { .. } 
@@ -93,7 +99,8 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             => return Err("Cannot assign to a Operation".to_string()),
         Expression::Prefix { .. } 
             => return Err("Cannot assign to a Prefix".to_string()),
-            
+        Expression::Comprehension { .. } 
+            => return Err("Cannot assign to a Comprehension".to_string()),
     }
 
 
@@ -182,26 +189,28 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
         Statement::If{params} => {
             match eval_expression(enviornment, &params.condition, importing) {
                 Ok(Value::Bool{b: true}) 
-                    => eval_statements(enviornment, &params.statements, importing)?,
+                    => eval_statements(enviornment, &params.statements, 
+                                       importing)?,
                 Ok(Value::Bool{b: false}) => {
                     let (elif_conditions, elif_statements ) = &params.elif_data;
-                    if elif_conditions.len() > 0 {
+                    if !elif_conditions.is_empty() {
                         let condition = elif_conditions[0].clone();
                         let statement = elif_statements[0].clone();
 
                         let next_iter = IfBranch{
-                            condition: condition,
+                            condition,
                             statements: statement,
                             else_statements: params.else_statements.clone(),
-                            elif_data: (elif_conditions[1..].to_vec(), elif_statements[1..].to_vec())
+                            elif_data: (elif_conditions[1..].to_vec(), 
+                                        elif_statements[1..].to_vec())
                         };
 
-                        eval_statement(enviornment, &Statement::If{params: next_iter}, importing)?
-                    }else{
-                        if let Some(else_statements) 
-                            = &params.else_statements { 
-                            eval_statements(enviornment, else_statements, importing)?;
-                        }
+                        eval_statement(enviornment, 
+                            &Statement::If{params: next_iter}, importing)?;
+                    }else if let Some(else_statements) = 
+                        &params.else_statements { 
+                            eval_statements(enviornment, else_statements, 
+                                            importing)?;
                     }
                 },
                 _ => return Err("Condition must be of type 'bool'".to_string()),
@@ -219,8 +228,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                             
                 if !b { break; }
                 
-                #[allow(clippy::question_mark)]
-                if let Err(e) = eval_statements(enviornment, statements, importing) {
+                if let Err(e) 
+                    = eval_statements(enviornment, statements, importing) {
                     return Err(e);
                 }
             }
@@ -260,7 +269,10 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                         "Prefix's are not iterable".to_string()),
                 Expression::Index { .. } 
                     => return Err(
-                        "Indexes are not iterable".to_string()) 
+                        "Indexes are not iterable".to_string()),
+                Expression::Comprehension { .. } 
+                    => return Err(
+                        "Comprehensions are not iterable".to_string())
             };
 
             let Value::List{e: iterator_list} = v 
@@ -297,7 +309,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             // replace "." with the current working directory
             let mut full_path = origin_file.clone();
-            if full_path.starts_with(".") {
+            if full_path.starts_with('.') {
                 full_path = origin_file.replacen('.', 
                                     cwd.to_str().unwrap(),
                                     1);
@@ -369,7 +381,56 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
             let ast = ProgramParser::new().parse(&external_code).unwrap();
 
             eval_program(enviornment, &ast, true)?;
-        }
+        },
+        /*Statement::Comprehension { output_var, iterate_exp, 
+                                   var, control_exp } => {
+            let mut local_env = enviornment.clone();
+            let control_val = eval_expression(&mut local_env, 
+                                                      control_exp, importing)?;
+
+            let output = match control_val {
+                Value::List { e } => {
+                    let mut output = vec![];
+                    for item in e {
+                        local_env.insert(var.to_string(), item);
+                        let iterate_exp_val = 
+                            eval_expression(&mut local_env, 
+                                             iterate_exp, importing)?;
+                        output.push(iterate_exp_val);
+                    }
+                    Value::List{e: output}
+                },
+                Value::Str { s } => {
+                    let mut output = vec![];
+                    for c in s.chars() {
+                        local_env.insert(var.to_string(), Value::Char {c});
+                        let iterate_exp_val = 
+                            eval_expression(&mut local_env, 
+                                             iterate_exp, importing)?;
+
+                        output.push(iterate_exp_val);
+                    }
+                    Value::List{e: output}
+                },
+                Value::Null 
+                    => return Err("Null is not iterable".to_string()),
+                Value::Int { .. } 
+                    => return Err("Int is not iterable".to_string()),
+                Value::Bool { .. } 
+                    => return Err("Bool is not iterable".to_string()),
+                Value::Float { .. } 
+                    => return Err("Float is not iterable".to_string()),
+                Value::Char { .. } 
+                    => return Err("Char is not iterable".to_string()),
+                Value::Function { .. } 
+                    => return Err("Function is not iterable".to_string()),
+                Value::UserDefFunction { .. } 
+                    => return Err("Function is not iterable".to_string()),
+            };
+
+            enviornment.insert(output_var.to_string(), output);
+
+        }*/
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 
@@ -377,7 +438,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_statements(enviornment: &mut HashMap<String, Value>, 
-              statements: &Vec<Statement>, importing: bool) -> Result<(), String> {
+                   statements: &Vec<Statement>, 
+                   importing: bool) -> Result<(), String> {
     
     for statement in statements {
         eval_statement(enviornment, statement, importing)?;
@@ -410,10 +472,10 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             match v {
                 Value::Function{f} => {
-                    if importing{
-                        if function == "print" || function == "println" {
-                            return Ok(Value::Null);
-                        }
+                    if importing && (function == "print" || 
+                                     function == "println" ) {
+
+                            return Ok(Value::Null);     
                     }
                     f(vals)
                 },
@@ -431,7 +493,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     
                     match return_expression {
                         Some(return_exp) => {
-                            match eval_expression(&mut enviornment.clone(), return_exp, importing) {
+                            match eval_expression(&mut enviornment.clone(),
+                                      return_exp, importing) {
                                 Ok(v) => Ok(v.clone()),
                                 Err(e) 
                                     => Err(e)
@@ -466,7 +529,9 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             
             for item in items {
                 let v = 
-                    match eval_expression(enviornment, &item.expression, importing) {
+                    match eval_expression(enviornment, 
+                                          &item.expression, 
+                                          importing) {
                         Ok(v) => v,
                         Err(e) => return Err(e)
                     };
@@ -502,61 +567,104 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             Ok(new_val)
         },
         Expression::Index { name, idx_exp } => {
-            let var = match enviornment.get(name) {
-                Some(v) => v,
-                None => return Err(format!("'{}' is not defined", name)),
-            };
+            let Some(var) = enviornment.get(name) 
+                else { return Err(format!("'{}' is not defined", name)) };
 
-            let exp_res = match eval_expression(&mut enviornment.clone(), &idx_exp, importing){
-                Ok(v) => v,
-                Err(e) => return Err(e),
-            };
+            let exp_res = eval_expression(&mut enviornment.clone(), idx_exp, 
+                                                 importing)?;
 
-            let idx = match exp_res {
-                Value::Int { v } => v,
-                _ => return Err("Index must be of type int".to_string()) 
-            };
+            let Value::Int { v: idx } = exp_res 
+                else { return Err("Index must be of type int".to_string()) };
 
             match var {
                 Value::List { e } => {
-                    let usize_idx = idx.abs() as usize;
+                    let usize_idx = idx.unsigned_abs() as usize;
 
                     if usize_idx > e.len() {
                         Err(format!("Index {} is out of bounds", idx))
+                    }else if idx < 0 {
+                        Ok(e[e.len() - usize_idx].clone())
                     }else{
-                        if idx < 0 {
-                            Ok(e[e.len() - usize_idx].clone())
-                        }else{
-                            Ok(e[usize_idx].clone())
-                        }
+                        Ok(e[usize_idx].clone())
                     }
+                    
                 },
                 Value::Str { s } => {             
-                    let usize_idx = idx.abs() as usize;
+                    let usize_idx = idx.unsigned_abs() as usize;
                     let mut chars = s.chars();
                     let length = chars.clone().count();
 
                     if usize_idx > length {
                         Err(format!("Index {} is out of bounds", idx))
-                    }else{
-                        if idx < 0 {
+                    }else if idx < 0 {
                             Ok(Value::Char{ 
                                 c: chars.nth(length - usize_idx)
                                     .expect("Err getting char from string")})
-                        }else {
-                            Ok(Value::Char{ 
-                                c: chars.nth(usize_idx)
-                                    .expect("Err getting char from string")})
-                        }
+                    }else {
+                        Ok(Value::Char{ 
+                            c: chars.nth(usize_idx)
+                                .expect("Err getting char from string")})
                     }
                 },
-                Value::Null => return Err("Cannot index Null".to_string()),
-                Value::Int { .. } => return Err("Cannot index Int".to_string()),
-                Value::Bool { .. } => return Err("Cannot index Boolean".to_string()),
-                Value::Char { .. } => return Err("Cannot index Char".to_string()),
-                Value::Function { .. } => return Err("Cannot index Function".to_string()),
-                Value::UserDefFunction { .. } => return Err("Cannot index Function".to_string()),
-                Value::Float { .. } => return Err("Cannot index Float".to_string()),
+                Value::Null 
+                    => Err("Cannot index Null".to_string()),
+                Value::Int { .. } 
+                    => Err("Cannot index Int".to_string()),
+                Value::Bool { .. } 
+                    => Err("Cannot index Boolean".to_string()),
+                Value::Char { .. } 
+                    => Err("Cannot index Char".to_string()),
+                Value::Function { .. } 
+                    => Err("Cannot index Function".to_string()),
+                Value::UserDefFunction { .. } 
+                    => Err("Cannot index Function".to_string()),
+                Value::Float { .. } 
+                    => Err("Cannot index Float".to_string()),
+            }
+        },
+        Expression::Comprehension { iterate_exp, var, control_exp } => {
+            let mut local_env = enviornment.clone();
+            let control_val = eval_expression(&mut local_env, 
+                                                      control_exp, importing)?;
+
+            match control_val {
+                Value::List { e } => {
+                    let mut output = vec![];
+                    for item in e {
+                        local_env.insert(var.to_string(), item);
+                        let iterate_exp_val = 
+                            eval_expression(&mut local_env, 
+                                             iterate_exp, importing)?;
+                        output.push(iterate_exp_val);
+                    }
+                    Ok(Value::List{e: output})
+                },
+                Value::Str { s } => {
+                    let mut output = vec![];
+                    for c in s.chars() {
+                        local_env.insert(var.to_string(), Value::Char {c});
+                        let iterate_exp_val = 
+                            eval_expression(&mut local_env, 
+                                             iterate_exp, importing)?;
+
+                        output.push(iterate_exp_val);
+                    }
+                    Ok(Value::List{e: output})
+                },
+                Value::Null 
+                    => Err("Null is not iterable".to_string()),
+                Value::Int { .. } 
+                    => Err("Int is not iterable".to_string()),
+                Value::Bool { .. } 
+                    => Err("Bool is not iterable".to_string()),
+                Value::Float { .. } 
+                    => Err("Float is not iterable".to_string()),
+                Value::Char { .. } 
+                    => Err("Char is not iterable".to_string()),
+                Value::Function { .. } 
+                    => Err("Function is not iterable".to_string()),
+                Value::UserDefFunction { .. } 
+                    => Err("Function is not iterable".to_string()),
             }
         }
         //_=> Err(format!("unhandled expression: {:?}", expression)),
@@ -564,7 +672,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 }
 
 fn eval_expressions(enviornment: &mut HashMap<String, Value>, 
-    expressions: &Vec<Expression>, importing: bool) -> Result<Vec<Value>, String> {
+                    expressions: &Vec<Expression>, 
+                    importing: bool) -> Result<Vec<Value>, String> {
         let mut vals = vec![];
 
         for expression in expressions {

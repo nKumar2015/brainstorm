@@ -21,7 +21,7 @@ pub enum Statement {
     FunctionDefinition{name: String, 
                        arguments: Vec<String>, 
                        statements: Vec<Statement>,
-                       return_expression: Option<Expression> }
+                       return_expression: Option<Expression> },
 }
 
 #[derive(Clone,Debug)] 
@@ -41,7 +41,11 @@ pub enum Expression {
     Operation{lhs: Box<Expression>, rhs: Box<Expression>, operator: Operator},
     Prefix{name: String, operator:Operator, rhs: Box<Expression>},
 
-    Index{name: String, idx_exp: Box<Expression>}
+    Index{name: String, idx_exp: Box<Expression>},
+
+    Comprehension{iterate_exp: Box<Expression>, 
+                  var: String, 
+                  control_exp: Box<Expression>}
 }
 #[derive(Clone,Debug)] 
 pub struct ForLoop {

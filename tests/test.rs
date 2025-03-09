@@ -179,5 +179,15 @@ mod tests {
         
         assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
     }
-    
+
+    #[test]
+    fn test_list_comprehension(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_list_comprehension.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_list_comprehension.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
 }

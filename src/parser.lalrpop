@@ -37,7 +37,7 @@ pub Statement: Statement = {
 
     "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
     "{" <statements:Statement*> "}"
-        => Statement::FunctionDefinition{name, arguments, statements, return_expression: None}
+        => Statement::FunctionDefinition{name, arguments, statements, return_expression: None},    
 }
 
 pub FunctionDefArgs: Vec<String> = {
@@ -66,7 +66,6 @@ pub elif_branches: (Vec<Expression>, Vec<Vec<Statement>>) = {
     }
 
 }
-
 
 pub IfBranch: IfBranch = {
     "if" "(" <condition:Expression> ")" 
@@ -103,10 +102,11 @@ pub IfBranch: IfBranch = {
 }
 
 pub ForLoop: ForLoop = {
-    "for" "(" <loop_var:Identifier> "in" <iterate_expression:Expression> ")" 
+    "for" <loop_var:Identifier> "in" <iterate_expression:Expression> 
     "{" <statements:Statement*> "}"
         => ForLoop{loop_var, iterate_expression, statements}
 }
+
 
 pub Expression: Expression = {
     #[precedence(level="0")]
@@ -118,13 +118,6 @@ pub Expression: Expression = {
     <c:CharacterLiteral> => Expression::Character{c},
 
     "[" <items:ExpressionList> "]" => Expression::List{items},
-
-    #[precedence(level="1")] #[assoc(side="left")]
-    <lhs:Expression> <operator:Operator> <rhs:Expression>
-        => Expression::Operation{lhs: Box::new(lhs), 
-                                 rhs: Box::new(rhs), 
-                                 operator },
-    
 
     <function:Identifier> "(" <arguments:FunctionArgs> ")" 
         => Expression::Call{function, arguments},
@@ -140,7 +133,17 @@ pub Expression: Expression = {
                               rhs: Box::new(Expression::Int{v: 1}) },
     
     <name:Identifier> "[" <idx_exp:Expression> "]"
-        => Expression::Index{name, idx_exp: Box::new(idx_exp)}
+        => Expression::Index{name, idx_exp: Box::new(idx_exp)},
+
+    #[precedence(level="1")] #[assoc(side="left")]
+    <lhs:Expression> <operator:Operator> <rhs:Expression>
+        => Expression::Operation{lhs: Box::new(lhs), 
+                                 rhs: Box::new(rhs), 
+                                 operator },
+                        
+    "[" <iterate_exp:Expression> "for" <var:Identifier> "in" <control_exp:Expression> "]" 
+        => Expression::Comprehension{iterate_exp: Box::new(iterate_exp), var, control_exp: Box::new(control_exp)},
+
 }
 
 pub FunctionArgs: Vec<Expression> = {

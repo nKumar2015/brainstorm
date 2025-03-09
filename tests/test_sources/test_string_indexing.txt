@@ -3,6 +3,6 @@ string = "abcdefg";
 println(string[0]);
 println(string[-1]);
 
-for(i in range(0, 7)){
+for i in range(0, 7) {
     println(string[i]);
 }

@@ -1,0 +1,5 @@
+x = [i + 1 for i in range(0, 10)];
+println(x);
+
+y = [[z+1 for z in range (0, 10)] for w in range(0, 2)];
+println(y);
