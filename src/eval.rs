@@ -382,55 +382,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             eval_program(enviornment, &ast, true)?;
         },
-        /*Statement::Comprehension { output_var, iterate_exp, 
-                                   var, control_exp } => {
-            let mut local_env = enviornment.clone();
-            let control_val = eval_expression(&mut local_env, 
-                                                      control_exp, importing)?;
-
-            let output = match control_val {
-                Value::List { e } => {
-                    let mut output = vec![];
-                    for item in e {
-                        local_env.insert(var.to_string(), item);
-                        let iterate_exp_val = 
-                            eval_expression(&mut local_env, 
-                                             iterate_exp, importing)?;
-                        output.push(iterate_exp_val);
-                    }
-                    Value::List{e: output}
-                },
-                Value::Str { s } => {
-                    let mut output = vec![];
-                    for c in s.chars() {
-                        local_env.insert(var.to_string(), Value::Char {c});
-                        let iterate_exp_val = 
-                            eval_expression(&mut local_env, 
-                                             iterate_exp, importing)?;
-
-                        output.push(iterate_exp_val);
-                    }
-                    Value::List{e: output}
-                },
-                Value::Null 
-                    => return Err("Null is not iterable".to_string()),
-                Value::Int { .. } 
-                    => return Err("Int is not iterable".to_string()),
-                Value::Bool { .. } 
-                    => return Err("Bool is not iterable".to_string()),
-                Value::Float { .. } 
-                    => return Err("Float is not iterable".to_string()),
-                Value::Char { .. } 
-                    => return Err("Char is not iterable".to_string()),
-                Value::Function { .. } 
-                    => return Err("Function is not iterable".to_string()),
-                Value::UserDefFunction { .. } 
-                    => return Err("Function is not iterable".to_string()),
-            };
-
-            enviornment.insert(output_var.to_string(), output);
-
-        }*/
         //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 
