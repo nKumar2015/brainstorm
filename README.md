@@ -1,6 +1,4 @@
-# Rust Lang
-
-(name in progress)
+# Brainstorm
 
 A C-like language written in rust with LALRPOP. Written as a self-learning project
 
