@@ -6,8 +6,9 @@ use std::collections::HashMap;
 mod ast; 
 mod eval;
 mod constants;
+mod value;
 
-use eval::Value;
+use crate::value::Value;
 
 #[macro_use]
 extern crate lalrpop_util; 
@@ -29,16 +30,16 @@ fn main() {
 
     let mut enviornment = HashMap::new();
     enviornment.insert("println".to_string(), 
-        Value::Function{f: println_});
+        Value::Function{name: "println".to_string(), f: println_});
     
     enviornment.insert("print".to_string(), 
-        Value::Function{f: print_});
+        Value::Function{name: "print".to_string(), f: print_});
 
     enviornment.insert("range".to_string(), 
-        Value::Function{f: range});
+        Value::Function{name: "range".to_string(), f: range});
 
     enviornment.insert("range_step".to_string(), 
-        Value::Function{f: range_step});
+        Value::Function{name: "range_step".to_string(), f: range_step});
         
     let ast = parser::ProgramParser::new().parse(&file).unwrap();
     
@@ -76,52 +77,14 @@ pub fn read_file(path: &str) -> Result<String, Error> {
 #[allow(clippy::unnecessary_wraps)]
 fn println_(args: Vec<Value>) -> Result<Value, String> {
     for arg in args {
-        match arg {
-            Value::Null => println!("Null"),
-            Value::Int { v } => println!("{}", v),
-            Value::Str { s } => println!("{}", s),
-            Value::Bool { b } => println!("{}", b),
-            Value::Float { f } => println!("{}", f),
-            Value::Char { c } => println!("{}", c),
-            Value::List { e } => {
-                print!("[");
-                for (idx, val) in e.iter().enumerate() {
-                    print_(vec![val.clone()])?;
-                    if idx != e.len() - 1 {
-                        print!(", ");
-                    }
-                }
-                println!("]");
-            },
-            Value::Function { f } => println!("{:?}", f),
-            Value::UserDefFunction { .. } => println!("FuncDef")
-        }
+        println!("{}", arg);
     }
     Ok(Value::Null)
 }
 
 fn print_(args: Vec<Value>) -> Result<Value, String> {
     for arg in args {
-        match arg {
-            Value::Null => print!("Null"),
-            Value::Int { v } => print!("{}", v),
-            Value::Str { s } => print!("{}", s),
-            Value::Bool { b } => print!("{}", b),
-            Value::Float { f } => print!("{}", f),
-            Value::Char { c } => print!("{}", c),
-            Value::List { e } => {
-                print!("[");
-                for (idx, val) in e.iter().enumerate() {
-                    print_(vec![val.clone()])?;
-                    if idx != e.len() - 1 {
-                        print!(", ");
-                    }
-                }
-                print!("]");
-            },
-            Value::Function { f } => print!("{:?}", f),
-            Value::UserDefFunction { .. } => print!(""),
-        }
+        print!("{}", arg);
     }
     Ok(Value::Null)
 }

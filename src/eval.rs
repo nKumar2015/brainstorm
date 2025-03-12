@@ -3,9 +3,9 @@ use std::env::{ args, current_dir, var};
 use std::path::Path;
 
 use crate::ast::{Expression, IfBranch, ListItem, Operator, Program, Statement};
-use crate::constants::FP_ERROR_MARGIN;
 use crate::parser::ProgramParser;
 use crate::read_file;
+use crate::value::Value;
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
                     Program::Body{statements}: &Program, importing: bool) 
@@ -180,6 +180,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             let v = 
                 match operate(operator, &lhs, &rhs) {
+                    Ok(Value::Null) 
+                        => return Err(format!("Cannot operate on {}", name)),
                     Ok(v) => v,
                     Err(e) => return Err(e)
                 };
@@ -292,6 +294,7 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             enviornment.insert(name.to_string(), 
                                Value::UserDefFunction { 
+                                    name: name.to_string(),
                                     statements: statements.clone(),
                                     arguments: arguments.clone(),
                                     return_expression: return_expression.clone()
@@ -422,7 +425,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             let mut local_env = enviornment.clone();
 
             match v {
-                Value::Function{f} => {
+                Value::Function{f, ..} => {
                     if importing && (function == "print" || 
                                      function == "println" ) {
 
@@ -431,7 +434,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     f(vals)
                 },
                 Value::UserDefFunction {statements, 
-                                        arguments , return_expression} => {
+                                        arguments , return_expression, ..} => {
                     if vals.len() != arguments.len() {
                         return Err(format!("Expected {} arguments, got {}", 
                                             arguments.len(), 
@@ -470,7 +473,11 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             }
 
             if let [lhs, rhs] = vals.as_slice() {
-                operate(operator, lhs, rhs)
+                let new_val = operate(operator, lhs, rhs)?;
+                if new_val == Value::Null {
+                    return Err("Invalid Operation".to_string())
+                }
+                Ok(new_val)
             }else{
                 Err("dev error: ".to_string())
             }
@@ -512,7 +519,9 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             };
 
             let new_val = operate(operator, &lhs, &v)?;
-
+            if new_val == Value::Null {
+                return Err(format!("Cannot operate on {}", name))
+            }
             enviornment.insert(name.clone(), new_val.clone());
 
             Ok(new_val)
@@ -527,51 +536,27 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             let Value::Int { v: idx } = exp_res 
                 else { return Err("Index must be of type int".to_string()) };
 
-            match var {
-                Value::List { e } => {
-                    let usize_idx = idx.unsigned_abs() as usize;
+            let mut iterator = var.clone().into_iter();
+            let length = iterator.clone().count();
 
-                    if usize_idx > e.len() {
-                        Err(format!("Index {} is out of bounds", idx))
-                    }else if idx < 0 {
-                        Ok(e[e.len() - usize_idx].clone())
-                    }else{
-                        Ok(e[usize_idx].clone())
-                    }
-                    
-                },
-                Value::Str { s } => {             
-                    let usize_idx = idx.unsigned_abs() as usize;
-                    let mut chars = s.chars();
-                    let length = chars.clone().count();
-
-                    if usize_idx > length {
-                        Err(format!("Index {} is out of bounds", idx))
-                    }else if idx < 0 {
-                            Ok(Value::Char{ 
-                                c: chars.nth(length - usize_idx)
-                                    .expect("Err getting char from string")})
-                    }else {
-                        Ok(Value::Char{ 
-                            c: chars.nth(usize_idx)
-                                .expect("Err getting char from string")})
-                    }
-                },
-                Value::Null 
-                    => Err("Cannot index Null".to_string()),
-                Value::Int { .. } 
-                    => Err("Cannot index Int".to_string()),
-                Value::Bool { .. } 
-                    => Err("Cannot index Boolean".to_string()),
-                Value::Char { .. } 
-                    => Err("Cannot index Char".to_string()),
-                Value::Function { .. } 
-                    => Err("Cannot index Function".to_string()),
-                Value::UserDefFunction { .. } 
-                    => Err("Cannot index Function".to_string()),
-                Value::Float { .. } 
-                    => Err("Cannot index Float".to_string()),
+            if iterator.value == Value::Null {
+                return Err(format!("Cannot iterate over variable {}", name))
             }
+
+            let usize_idx = idx.unsigned_abs() as usize;
+
+            if usize_idx > length {
+                return Err(format!("Index {} is out of bounds", idx))
+            }
+
+            if idx < 0 {
+                return Ok(iterator.nth(length - usize_idx)
+                    .unwrap_or_else(|| panic!("Err retreiving value at {}", 
+                                               idx)))
+            }
+
+            Ok(iterator.nth(usize_idx)
+                .unwrap_or_else(|| panic!("Err retreiving value at {}", idx)))
         },
         Expression::Comprehension { iterate_exp, var, control_exp } => {
             let mut local_env = enviornment.clone();
@@ -639,89 +624,15 @@ fn eval_expressions(enviornment: &mut HashMap<String, Value>,
 
 fn operate(operator: &Operator, lhs: &Value, rhs: &Value) 
     -> Result<Value, String>{
-    match (lhs, rhs){
-        (Value::Int{v: lhs}, Value::Int{v: rhs}) => {
-            match operator {
-                Operator::Plus => {Ok(Value::Int { v: lhs + rhs })},
-                Operator::Minus => {Ok(Value::Int { v: lhs - rhs })},
-                Operator::Times => {Ok(Value::Int { v: lhs * rhs })},
-                Operator::Divide => {Ok(Value::Int { v: lhs / rhs })},
-                Operator::LessThan => {Ok(Value::Bool { b: lhs < rhs })},
-                Operator::GreaterThan => {Ok(Value::Bool { b: lhs > rhs })},
-                Operator::Equal => {Ok(Value::Bool { b: lhs == rhs })},
-                Operator::NotEqual => {Ok(Value::Bool { b: lhs != rhs })}
-            } 
-        },
-        (Value::Float{f: lhs}, Value::Float{f: rhs}) => {
-            match operator{
-                Operator::Plus => {Ok(Value::Float { f: lhs + rhs })},
-                Operator::Minus => {Ok(Value::Float { f: lhs - rhs })},
-                Operator::Times => {Ok(Value::Float { f: lhs * rhs })},
-                Operator::Divide => {Ok(Value::Float { f: lhs / rhs })},
-                Operator::LessThan => {Ok(Value::Bool { b: lhs < rhs })},
-                Operator::GreaterThan => {Ok(Value::Bool { b: lhs > rhs })},
-                Operator::Equal => {Ok(Value::Bool { 
-                    b: (lhs - rhs).abs() < FP_ERROR_MARGIN 
-                })},
-                Operator::NotEqual => {Ok(Value::Bool { 
-                    b: (lhs - rhs).abs() > FP_ERROR_MARGIN 
-                })},
-            }
-        },
-        (Value::Float{f: lhs}, Value::Int{v: rhs}) => {
-            let rhsf = f64::from(*rhs);
-            match operator{
-                Operator::Plus => {Ok(Value::Float { f: lhs + rhsf })},
-                Operator::Minus => {Ok(Value::Float { f: lhs - rhsf })},
-                Operator::Times => {Ok(Value::Float { f: lhs * rhsf })},
-                Operator::Divide => {Ok(Value::Float { f: lhs / rhsf })},
-                Operator::LessThan => {Ok(Value::Bool { b: *lhs < rhsf })},
-                Operator::GreaterThan => {Ok(Value::Bool { b: *lhs > rhsf })},
-                Operator::Equal => {Ok(Value::Bool { 
-                    b: (*lhs - rhsf).abs() < FP_ERROR_MARGIN 
-                })},
-                Operator::NotEqual => {Ok(Value::Bool { 
-                    b: (*lhs - rhsf).abs() > FP_ERROR_MARGIN 
-                })},
-
-            }
-        },
-        (Value::Int{v: lhs}, Value::Float{f: rhs}) => {
-            let lhsf = f64::from(*lhs);
-            match operator{
-                Operator::Plus => {Ok(Value::Float { f: lhsf + rhs })},
-                Operator::Minus => {Ok(Value::Float { f: lhsf - rhs })},
-                Operator::Times => {Ok(Value::Float { f: lhsf * rhs })},
-                Operator::Divide => {Ok(Value::Float { f: lhsf / rhs })},
-                Operator::LessThan => {Ok(Value::Bool { b: lhsf < *rhs })},
-                Operator::GreaterThan => {Ok(Value::Bool { b: lhsf > *rhs })},
-                Operator::Equal => {Ok(Value::Bool { 
-                    b: (lhsf - *rhs).abs() < FP_ERROR_MARGIN 
-                })},
-                Operator::NotEqual => {Ok(Value::Bool { 
-                    b: (lhsf - *rhs).abs() > FP_ERROR_MARGIN 
-                })},
-            }
+        match operator {
+            Operator::Plus => Ok(lhs + rhs),
+            Operator::Minus => Ok(lhs + rhs),
+            Operator::Times => Ok(lhs + rhs),
+            Operator::Divide => Ok(lhs + rhs),
+            Operator::LessThan => Ok(lhs + rhs),
+            Operator::GreaterThan => Ok(lhs + rhs),
+            Operator::Equal => Ok(Value::Bool{b: lhs == rhs}),
+            Operator::NotEqual => Ok(Value::Bool{b: lhs != rhs}),
         }
-        _ => Err(format!("unhandled types: {:?}", (lhs, rhs))),
-    }
-}               
-
-#[derive(Clone,Debug)]
-pub enum Value {
-    Null,
-    Int{v: i32},
-    #[allow(dead_code)]
-    Str{s: String},
-    Bool{b: bool},
-    #[allow(dead_code)]
-    Float{f: f64},
-    #[allow(dead_code)]
-    Char{c: char},
-    #[allow(dead_code)]
-    List{e: Vec<Value>},
-    Function{f: fn(Vec<Value>) -> Result<Value, String>},
-    #[allow(dead_code)]
-    UserDefFunction{statements: Vec<Statement>, arguments: Vec<String>, 
-                    return_expression: Option<Expression> }
 }
+              
