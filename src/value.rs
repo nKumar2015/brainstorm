@@ -1,25 +1,24 @@
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign };
 
-use crate::ast::{Expression, Statement};
+use crate::ast::{Expression, Statement, ClassInitDef, ClassField, ClassMethod};
 
 #[derive(Debug)]
 pub enum Value {
     Null,
     Int{v: i32},
-    #[allow(dead_code)]
     Str{s: String},
     Bool{b: bool},
-    #[allow(dead_code)]
     Float{f: f64},
-    #[allow(dead_code)]
     Char{c: char},
-    #[allow(dead_code)]
     List{e: Vec<Value>},
     Function{name: String, f: fn(Vec<Value>) -> Result<Value, String>},
-    #[allow(dead_code)]
     UserDefFunction{name: String, statements: Vec<Statement>, 
-        arguments: Vec<String>, return_expression: Option<Expression> }
+        arguments: Vec<String>, return_expression: Option<Expression>},
+    Object{name: String, fields: HashMap<String, ClassField>, 
+             init: ClassInitDef, methods: HashMap<String, ClassMethod>}
 }
 
 impl fmt::Display for Value {
@@ -53,6 +52,8 @@ impl fmt::Display for Value {
                 => to_print = format!("Function \"{}\"", name),
             Value::UserDefFunction { name, .. } 
                 => to_print = format!("Function \"{}\"", name),
+            Value::Object { name,.. } 
+                => to_print = format!("Class \"{}\"", name)
         };
         write!(f, "{}", to_print)
     }
@@ -95,12 +96,19 @@ impl Iterator for ValueIterator {
         let val = &self.value;
         match val {
             Value::List { e } => {
+                if self.index >= e.len() {
+                    return None;
+                }
                 let item = e[self.index].clone();
                 self.index += 1;
                 Some(item)
             },
             Value::Str { s } => {
                 let mut chars = s.chars();
+                let length = chars.clone().count();
+                if self.index >= length {
+                    return None;
+                }
                 let item = chars.nth(self.index)
                     .expect("Error getting char from string");
                 self.index += 1;
@@ -151,6 +159,67 @@ impl PartialEq for Value {
     }
 }
 
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Value::Null, Value::Null) 
+                => Ordering::Equal,
+            (Value::Int { v: lv }, Value::Int { v: rv }) 
+                => lv.cmp(rv),
+            (Value::Float { f }, Value::Int { v }) => {
+                if *f < f64::from(*v) {
+                    return Ordering::Less
+                }
+                if *f > f64::from(*v) {
+                    return Ordering::Greater
+                }
+                Ordering::Equal
+            },
+            (Value::Int { v }, Value::Float { f }) => {
+                if f64::from(*v) < *f {
+                    return Ordering::Less
+                }
+                if f64::from(*v) > *f{
+                    return Ordering::Greater
+                }
+                Ordering::Equal
+            },
+            (Value::Str { s: ls }, Value::Str{ s: rs}) 
+                => ls.cmp(rs),
+            (Value::Bool { b: lb }, Value::Bool{ b: rb}) 
+                => lb.cmp(rb),
+            (Value::Float { f: lf }, Value::Float{ f: rf}) => {
+                if lf < rf {
+                    return Ordering::Less
+                }
+                if lf > rf {
+                    return Ordering::Greater
+                }
+                Ordering::Equal
+            },
+            (Value::Char { c: lc }, Value::Char{ c: rc}) 
+                => lc.cmp(rc),
+            (Value::List{ .. }, Value::List{ .. } )
+                => panic!("Cannot compare two lists!"),
+            (Value::Function{ .. }, Value::Function{ .. } )
+                => panic!("Cannot compare two functions!"),
+            (Value::UserDefFunction{ .. }, Value::UserDefFunction{ .. } )
+                => panic!("Cannot compare two functions!"),
+            (Value::Object{ .. }, Value::Object{ .. } )
+                => panic!("Cannot compare two classes!"),
+            _ => panic!("Cannot compare these two types!")
+        }    
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Value {}
+
 impl Clone for Value {
     fn clone(&self) -> Self {
         match self {
@@ -171,11 +240,17 @@ impl Clone for Value {
             Self::Function { name, f } 
                 => Self::Function { name: name.clone(), f: *f },
             Self::UserDefFunction { name, statements, 
-                                    arguments, return_expression 
-                                  } => Self::UserDefFunction { 
-                    name: name.clone(), statements: statements.clone(), 
+                                    arguments, return_expression } 
+                => Self::UserDefFunction { 
+                    name: name.clone(), 
+                    statements: statements.clone(), 
                     arguments: arguments.clone(), 
                     return_expression: return_expression.clone() },
+            Self::Object { name, fields, init, methods } 
+                => Self::Object{name: name.clone(), 
+                                  fields: fields.clone(), 
+                                  init: init.clone(), 
+                                  methods: methods.clone()}
         }
     }
 }

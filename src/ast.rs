@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::value::Value;
+
 #[derive(Clone,Debug)] 
 pub enum Program {
     Body{statements: Vec<Statement>},
@@ -34,7 +38,7 @@ pub enum Expression {
     Character{c: char},
     List{items: Vec<ListItem>},
     // END TYPES
-
+    ClassDef{params: Box<UserClass>},
     Identifier{name: String},
     Call{function: String, arguments: Vec<Expression>},
 
@@ -45,8 +49,15 @@ pub enum Expression {
 
     Comprehension{iterate_exp: Box<Expression>, 
                   var: String, 
-                  control_exp: Box<Expression>}
+                  control_exp: Box<Expression>},
+        
+    FieldAccess{name: String, field: String},
+
+    ObjectCreation{class_name: String, arguments: Vec<Expression>},
+
+    MethodCall{name: String, method: String, arguments: Vec<Expression>}
 }
+
 #[derive(Clone,Debug)] 
 pub struct ForLoop {
     pub loop_var: String,
@@ -69,7 +80,36 @@ pub struct ListItem {
     pub is_pack: bool,
 }
 
-#[derive(Clone,Debug)] 
+#[derive(Clone,Debug)]
+pub struct UserClass {
+    pub name: String,
+    pub fields: HashMap<String, ClassField>,
+    pub init: ClassInitDef,
+    pub methods: HashMap<String, ClassMethod>
+}
+
+#[derive(Clone,Debug)]
+pub struct ClassField {
+    pub is_private: bool,
+    pub value: Value
+}
+
+#[derive(Clone,Debug)]
+pub struct ClassInitDef {
+    pub name: Option<String>,
+    pub arguments: Option<Vec<String>>, 
+    pub statements: Option<Vec<Statement>>,
+}
+
+#[derive(Clone,Debug)]
+pub struct ClassMethod {
+    pub arguments: Vec<String>,
+    pub statements: Vec<Statement>,
+    pub return_exp: Option<Expression>,
+    pub is_private: bool
+}
+
+#[derive(Clone,Debug)]
 pub enum Operator {
     Plus,
     Minus,

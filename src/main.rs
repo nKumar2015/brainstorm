@@ -75,21 +75,23 @@ pub fn read_file(path: &str) -> Result<String, Error> {
 
 
 #[allow(clippy::unnecessary_wraps)]
-fn println_(args: Vec<Value>) -> Result<Value, String> {
+pub fn println_(args: Vec<Value>) -> Result<Value, String> {
     for arg in args {
-        println!("{}", arg);
+        print!("{}", arg);
     }
+    println!();
     Ok(Value::Null)
 }
 
-fn print_(args: Vec<Value>) -> Result<Value, String> {
+pub fn print_(args: Vec<Value>) -> Result<Value, String> {
     for arg in args {
         print!("{}", arg);
     }
     Ok(Value::Null)
 }
 
-fn range_step(args: Vec<Value>) -> Result<Value, String> {
+#[allow(clippy::missing_panics_doc)]
+pub fn range_step(args: Vec<Value>) -> Result<Value, String> {
     let mut vals = vec![];
 
     let start = args[0].clone();
@@ -104,7 +106,7 @@ fn range_step(args: Vec<Value>) -> Result<Value, String> {
 
     let Value::Int{v: st} = step 
         else { return Err("Invalid Type".to_string())};
-
+    
     for x in (s..e).step_by(st.try_into().unwrap()) {
         vals.push(Value::Int{v: x});
     }
@@ -112,7 +114,7 @@ fn range_step(args: Vec<Value>) -> Result<Value, String> {
     Ok(Value::List{e: vals})
 }
 
-fn range(args: Vec<Value>) -> Result<Value, String> {
+pub fn range(args: Vec<Value>) -> Result<Value, String> {
     let mut vals = args;
     vals.push(Value::Int{v: 1});
     range_step(vals)

@@ -1,0 +1,29 @@
+class testObject {
+    fields {
+        pub x, pub y, pub z
+    };
+
+    init(a, b, c){
+        this.x = a;
+        this.y = b;
+        this.z = c;
+    };
+
+    fn hello(){
+        println(x, y, z);
+    };
+
+    fn hello_this(){
+        println(this.x, this.y, this.z);
+    };
+
+    fn hello_test(){
+        this.hello();
+    }
+};
+
+[a, b, c]= [1, 2, 4];
+object = new testObject(a, b, c);
+object.hello();
+object.hello_this();
+object.hello_test();

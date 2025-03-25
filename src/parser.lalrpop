@@ -6,7 +6,14 @@ use crate::ast::{
     ListItem, 
     ForLoop,
     IfBranch,
+    UserClass,
+    ClassInitDef,
+    ClassField,
+    ClassMethod,
 };
+
+use std::collections::HashMap;
+use crate::value::Value;
 
 grammar;
 
@@ -48,6 +55,79 @@ pub FunctionDefArgs: Vec<String> = {
         args.insert(0, argument);
 
         args
+    }
+}
+
+pub ClassFields: HashMap<String, ClassField> = {
+    () => HashMap::new(),
+    <visibility:"pub"?> <field:Identifier> => {
+        let mut fields = HashMap::new();
+        let new_field = ClassField{is_private: visibility.is_some(), value: Value::Null};
+        fields.insert(field, new_field);
+
+        fields
+    },
+    <visibility:"pub"?> <field:Identifier> "," <tail:ClassFields> => {
+        let mut fields = tail.clone();
+        let new_field = ClassField{is_private: visibility.is_some(), value: Value::Null};
+        fields.insert(field, new_field);
+
+        fields
+    }
+}
+
+pub ClassInit: ClassInitDef = {
+    () => ClassInitDef{name: None, arguments: None, statements: None},
+    "init" "(" <arguments:FunctionDefArgs> ")"
+    "{" <statements:Statement*> "}" ";"
+        => ClassInitDef{name: Some("default_init".to_string()), arguments: Some(arguments), statements: Some(statements)}
+}
+
+pub ClassMethods: HashMap<String, ClassMethod> = {
+    () => HashMap::new(),
+    <visibility:"pub"?> "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*> "return" <return_expression:Expression> ";" "}" => {
+        let mut methods = HashMap::new();
+        let method = ClassMethod{arguments, statements, 
+                                 return_exp: Some(return_expression), 
+                                 is_private: visibility.is_some() };
+        
+        methods.insert(name, method);
+
+        methods
+    },
+    <visibility:"pub"?> "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*> "}" => {
+        let mut methods = HashMap::new();
+        let method = ClassMethod{arguments, statements, 
+                                 return_exp: None, 
+                                 is_private: visibility.is_some() };
+
+        methods.insert(name, method);
+
+        methods
+    },
+    <visibility:"pub"?> "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*> "return" <return_expression:Expression> ";" "}" ";" <tail:ClassMethods> => {
+        let mut methods = tail.clone();
+        let method = ClassMethod{arguments, statements, 
+                                 return_exp: Some(return_expression), 
+                                 is_private: visibility.is_some() };
+
+        methods.insert(name, method);
+
+        methods
+    },
+    <visibility:"pub"?> "fn" <name:Identifier> "(" <arguments:FunctionDefArgs> ")" 
+    "{" <statements:Statement*>"}" ";" <tail:ClassMethods> => {
+        let mut methods = tail.clone();
+        let method = ClassMethod{arguments, statements, 
+                                 return_exp: None, 
+                                 is_private: visibility.is_some() };
+
+        methods.insert(name, method);
+
+        methods
     }
 }
 
@@ -107,7 +187,6 @@ pub ForLoop: ForLoop = {
         => ForLoop{loop_var, iterate_expression, statements}
 }
 
-
 pub Expression: Expression = {
     #[precedence(level="0")]
     <v:IntLiteral>       => Expression::Int{v},
@@ -116,6 +195,21 @@ pub Expression: Expression = {
     <b:BooleanLiteral>   => Expression::Boolean{b},
     <f:FloatLiteral>     => Expression::Float{f},
     <c:CharacterLiteral> => Expression::Character{c},
+
+    "class" <name:Identifier> "{" 
+    "fields" "{" <fields:ClassFields> "}" ";"
+    <init:ClassInit>
+    <methods:ClassMethods> "}"
+        => Expression::ClassDef{params: Box::new(UserClass{name, fields, init, methods})},
+    
+    "new" <class_name:Identifier> "(" <arguments:FunctionArgs> ")" 
+        => Expression::ObjectCreation{class_name, arguments},
+
+    <name:Identifier> "." <method:Identifier> "(" <arguments:FunctionArgs> ")"
+        => Expression::MethodCall{name, method, arguments},
+
+    <obj:Identifier> "." <field:Identifier>
+        => Expression::FieldAccess{name: obj, field},
 
     "[" <items:ExpressionList> "]" => Expression::List{items},
 

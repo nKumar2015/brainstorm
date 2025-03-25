@@ -2,10 +2,13 @@ use std::collections::HashMap;
 use std::env::{ args, current_dir, var};
 use std::path::Path;
 
-use crate::ast::{Expression, IfBranch, ListItem, Operator, Program, Statement};
+use crate::ast::{ClassField, Expression, IfBranch, ListItem, 
+                 Operator, Program, Statement};
 use crate::parser::ProgramParser;
 use crate::read_file;
 use crate::value::Value;
+use crate::constants::KEYWORDS;
+use crate::{println_, print_, range_step, range};
 
 pub fn eval_program(enviornment: &mut HashMap<String, Value>, 
                     Program::Body{statements}: &Program, importing: bool) 
@@ -63,6 +66,8 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
                     => return Err("Cannot index Function".to_string()),
                 Value::Float { .. } 
                     => return Err("Cannot index Float".to_string()),
+                Value::Object { .. }
+                    => return Err("Cannot index Object".to_string()),
             };
 
             let Value::Int { v: idx } = exp_res 
@@ -82,7 +87,52 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             
 
             enviornment.insert(name, Value::List { e: list });
-        }
+        },
+        Expression::FieldAccess { name, field } => {
+            if name == "this" {
+                let Some(_) = enviornment.get(&field) else {
+                    return Err(format!("No such field \"{}\"", field))
+                };
+                enviornment.insert(field, rhs);
+                return Ok(())
+            }
+
+            let Some(obj) = enviornment.get(&name) else {
+                return Err(format!("{} is undefined", name))
+            };
+
+            let Value::Object { name: class_name, 
+                                fields: obj_fields, 
+                                init, methods } 
+                                = obj else { 
+                return Err(format!("{} is not an object", name)) 
+            };
+
+            let Some(data) = obj_fields.get(&field) else {
+                return Err(format!("{} has no field {}", name, field))
+            };
+
+            if data.is_private {
+                return Err("Cannot access private field".to_string())
+            }
+
+            let new_field = ClassField{
+                is_private: data.is_private,
+                value: rhs,
+            };
+
+            let mut new_fields = obj_fields.clone();
+            new_fields.insert(field, new_field);
+
+            let updated_obj = Value::Object { 
+                name: class_name.to_string(), fields: new_fields, 
+                init: init.clone(), methods: methods.clone()
+            };
+
+            enviornment.insert(name, updated_obj);
+
+            return Ok(())
+        }, 
         Expression::Int { .. } 
             => return Err("Cannot assign to a Integer literal".to_string()),
         Expression::String { .. } 
@@ -101,6 +151,13 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
             => return Err("Cannot assign to a Prefix".to_string()),
         Expression::Comprehension { .. } 
             => return Err("Cannot assign to a Comprehension".to_string()),
+        Expression::ClassDef { .. }
+            => return Err("Cannot assign to a Class".to_string()),
+        Expression::ObjectCreation { .. } 
+            => return Err("Cannot assign to a Object".to_string()),
+        Expression::MethodCall { .. } => {
+            todo!();
+        }
     }
 
 
@@ -274,7 +331,19 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                         "Indexes are not iterable".to_string()),
                 Expression::Comprehension { .. } 
                     => return Err(
-                        "Comprehensions are not iterable".to_string())
+                        "Comprehensions are not iterable".to_string()),
+                Expression::ClassDef { .. }
+                    => return Err(
+                        "Classes are not iterable".to_string()),
+                Expression::FieldAccess { .. }
+                    => return Err(
+                        "Fields are not are not iterable".to_string()),
+                Expression::ObjectCreation { .. }
+                    => return Err(
+                        "Objects are not are not iterable".to_string()),
+                Expression::MethodCall { .. } => {
+                    todo!();
+                }
             };
 
             let Value::List{e: iterator_list} = v 
@@ -317,7 +386,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                                     cwd.to_str().unwrap(),
                                     1);
             }
-
             let external_code = 
                 if path.starts_with('.') {                    
                     // Move one level up
@@ -358,8 +426,8 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                         result.unwrap()
                     }else {
                         // If the file is not present, check if the file exists 
-                        // in the paths listedn inthe RUSTL_LIB env var 
-                        let var = var("RUSTL_LIB");
+                        // in the paths listedn in the BRNSTM_LIB env var 
+                        let var = var("BRNSTM_LIB");
                         let mut out = String::new();
                         if var.is_ok(){
                             let res_val = var.unwrap();
@@ -385,7 +453,6 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
 
             eval_program(enviornment, &ast, true)?;
         },
-        //_ => return Err(format!("unhandled statement: {:?}", statement)),
     }
 
     Ok(())
@@ -545,7 +612,7 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
 
             let usize_idx = idx.unsigned_abs() as usize;
 
-            if usize_idx > length {
+            if usize_idx >= length {
                 return Err(format!("Index {} is out of bounds", idx))
             }
 
@@ -601,7 +668,181 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     => Err("Function is not iterable".to_string()),
                 Value::UserDefFunction { .. } 
                     => Err("Function is not iterable".to_string()),
+                Value::Object { .. }
+                    => Err("Class is not iterable".to_string())
             }
+        },
+        Expression::ClassDef { params } => {
+            let name = &params.name;
+            let fields = &params.fields;
+            
+            for word in KEYWORDS {
+                if word.eq(name) {
+                    return Err(format!("\"{}\" is a protected keyword", name));
+                }
+            }
+
+            let keys = fields.keys();
+            
+            for key in keys {
+                for word in KEYWORDS {
+                    if word.eq(key) {
+                        return Err(
+                                format!("\"{}\" is a protected keyword", key));
+                    }
+                }
+            }
+
+            enviornment.insert(name.to_string(), 
+                               Value::Object{
+                                    name: name.to_string(), 
+                                    fields: fields.clone(), 
+                                    init: params.init.clone(), 
+                                    methods: params.methods.clone()});
+
+
+            Ok(Value::Null)
+        },
+        Expression::FieldAccess { name, field } => {
+            let res = enviornment.get(name);
+            let Some(val) = res else { 
+                return Err(format!("{} is undefined", name)) 
+            };
+            
+            let obj_fields = match val {
+                Value::Object { name: _, fields, .. } => fields.clone(),
+                _ => return Err("Can only access fields on objects".to_string())
+            };
+
+            for (field_name, field_data) in obj_fields {
+                if field_name == *field 
+                && (!field_data.is_private || name == "this") {
+                    return Ok(field_data.value);
+                }
+            }
+
+            Err("Cannot access private fields!".to_string())
+        },
+        Expression::ObjectCreation { class_name, arguments } => {
+            let Some(res) = enviornment.get(class_name) else {
+                return Err(format!("{} is undefined", class_name))
+            };
+            
+            let Value::Object { name, fields, init, methods } = res 
+                else { return Err(format!("{} is not a class", class_name)) };
+
+            if init.name.is_none() {
+                return Ok(Value::Object{name: name.clone(), 
+                                        fields: fields.clone(), 
+                                        init: init.clone(), 
+                                        methods: methods.clone()});
+            }
+
+            let init_args = match &init.arguments {
+                Some(s) => s.clone(),
+                None => vec![]
+            };
+
+            if init_args.len() != arguments.len() {
+                return Err(format!("Expected {} arguments but got {}", 
+                                    init_args.len(), arguments.len()))
+            }
+
+            let init_statements = match &init.statements {
+                Some(s) => s.clone(),
+                None => vec![]
+            };
+
+            let mut local_env = HashMap::<String, Value>::new();
+            for (name, exp) in init_args.iter().zip(arguments.iter()) {
+                let val = eval_expression(&mut enviornment.clone(), 
+                                      exp, importing)?;
+                local_env.insert(name.to_string(), val);
+            }
+
+            for (name, data) in fields {
+                local_env.insert(name.to_string(), data.value.clone());
+            }
+
+            for statement in init_statements {
+                eval_statement(&mut local_env, &statement, importing)?;
+            }
+            
+            let mut updated_fields = HashMap::<String, ClassField>::new();
+
+            for (field, data) in fields {
+                let Some(updated_field) = local_env.get(field) else {
+                    return Err(format!(
+                            "An error occured when initalizing {}", field))
+                };
+                let mut new_data = data.clone();
+
+                new_data.value = updated_field.clone();
+
+                updated_fields.insert(field.to_string(), new_data);
+            }
+
+            Ok(Value::Object{name: name.clone(), fields: updated_fields, 
+                             init: init.clone(), methods: methods.clone()})
+        },
+        Expression::MethodCall { name, method, arguments  } => {
+            let Some(object) = enviornment.get(name) else {
+                return Err(format!("{} is not defined", name))
+            };
+
+            let Value::Object{ name: _name, fields: object_fields, 
+                               init: _init, methods: object_methods } 
+                               = object else {
+                return Err(format!("{} is not an object", name))
+            };
+
+            for (m_name, method_data) in object_methods {
+                if m_name == method 
+                    && (!method_data.is_private || name == "this") {
+                    let obj_arguments = method_data.arguments.clone();
+
+                    if obj_arguments.len() != arguments.len() {
+                        return Err(format!("Expected {} arguments, got {}", 
+                                            obj_arguments.len(),
+                                            arguments.len()));
+                    }
+
+                    let statements = method_data.statements.clone();
+                    let return_exp = method_data.return_exp.clone();
+
+                    let mut local_env = HashMap::<String, Value>::new();
+                    insert_builtins(&mut local_env);
+                    local_env.insert("this".to_string(), object.clone());
+
+                    let mut env_clone = enviornment.clone();
+
+                    for (name, argument) 
+                        in obj_arguments.iter().zip(arguments.iter()) {
+                            
+                        let res = eval_expression(
+                            &mut env_clone, argument, importing)?;
+                        local_env.insert(name.to_string(), res);
+                    }
+
+                    for (name, data) in object_fields {
+                        local_env.insert(name.to_string(), data.clone().value);
+                    }
+
+                    for statement in statements {
+                        eval_statement(&mut local_env, &statement, importing)?;
+                    }
+
+                    if return_exp.is_none() {
+                        return Ok(Value::Null)
+                    }
+
+                    let return_val = eval_expression(
+                        &mut local_env, &return_exp.unwrap(), importing)?;
+                    return Ok(return_val)
+                }
+            };
+
+            Err(format!("{} is not a valid method or is private", method))
         }
         //_=> Err(format!("unhandled expression: {:?}", expression)),
     }
@@ -626,13 +867,26 @@ fn operate(operator: &Operator, lhs: &Value, rhs: &Value)
     -> Result<Value, String>{
         match operator {
             Operator::Plus => Ok(lhs + rhs),
-            Operator::Minus => Ok(lhs + rhs),
-            Operator::Times => Ok(lhs + rhs),
-            Operator::Divide => Ok(lhs + rhs),
-            Operator::LessThan => Ok(lhs + rhs),
-            Operator::GreaterThan => Ok(lhs + rhs),
+            Operator::Minus => Ok(lhs - rhs),
+            Operator::Times => Ok(lhs * rhs),
+            Operator::Divide => Ok(lhs / rhs),
+            Operator::LessThan => Ok(Value::Bool{b: lhs < rhs}),
+            Operator::GreaterThan => Ok(Value::Bool{b: lhs > rhs}),
             Operator::Equal => Ok(Value::Bool{b: lhs == rhs}),
             Operator::NotEqual => Ok(Value::Bool{b: lhs != rhs}),
         }
 }
               
+fn insert_builtins(env: &mut HashMap<String, Value>){
+    env.insert("println".to_string(), 
+        Value::Function{name: "println".to_string(), f: println_});
+    
+    env.insert("print".to_string(), 
+        Value::Function{name: "print".to_string(), f: print_});
+
+    env.insert("range".to_string(), 
+        Value::Function{name: "range".to_string(), f: range});
+
+    env.insert("range_step".to_string(), 
+        Value::Function{name: "range_step".to_string(), f: range_step});
+}

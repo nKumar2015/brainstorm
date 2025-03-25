@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_import_env(){
-        env::set_var("RUSTL_LIB", "/home/nakul/projects/rustlang/tests/common");
+        env::set_var("BRNSTM_LIB", "/home/nakul/projects/brainstorm/test_lib");
 
         let(log, errors)
             = common::get_program_output("tests/test_sources/test_import_env.txt");
@@ -187,6 +187,17 @@ mod tests {
         
         let expected_output
             = common::read_file("tests/test_output/test_list_comprehension.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+    #[test]
+    fn test_objects(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_objects.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_objects.output");
         
         assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
     }
