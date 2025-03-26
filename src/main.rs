@@ -12,7 +12,6 @@ use crate::value::Value;
 
 #[macro_use]
 extern crate lalrpop_util; 
-
 lalrpop_mod!(pub parser);
 
 
@@ -48,7 +47,8 @@ fn main() {
     match &result {
         Ok(()) => (),
         Err(s) => {
-            println!("\nError: {s}\n\nAST:\n{:?}\n", ast);
+            //println!("\nError: {s}\n\nAST:\n{:?}\n", ast);
+            println!("\nError: {s}\n");
         },
     }
 }

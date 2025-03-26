@@ -85,7 +85,8 @@ pub struct UserClass {
     pub name: String,
     pub fields: HashMap<String, ClassField>,
     pub init: ClassInitDef,
-    pub methods: HashMap<String, ClassMethod>
+    pub methods: HashMap<String, ClassMethod>,
+    pub parent: Option<String>
 }
 
 #[derive(Clone,Debug)]

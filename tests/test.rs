@@ -201,4 +201,15 @@ mod tests {
         
         assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
     }
+
+    #[test]
+    fn test_object_visibility(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_object_visibility.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_object_visibility.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
 }

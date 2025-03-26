@@ -103,7 +103,8 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
 
             let Value::Object { name: class_name, 
                                 fields: obj_fields, 
-                                init, methods } 
+                                init, methods, 
+                                parent_class } 
                                 = obj else { 
                 return Err(format!("{} is not an object", name)) 
             };
@@ -126,7 +127,8 @@ fn assign(enviornment: &mut HashMap<String, Value>, lhs: Expression, rhs: Value)
 
             let updated_obj = Value::Object { 
                 name: class_name.to_string(), fields: new_fields, 
-                init: init.clone(), methods: methods.clone()
+                init: init.clone(), methods: methods.clone(), 
+                parent_class: parent_class.clone()
             };
 
             enviornment.insert(name, updated_obj);
@@ -525,6 +527,33 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                     }
 
                 },
+                Value::Object{ .. } => {
+                    if function != "super" {
+                        return Err(format!("'{function}' is not a function"))
+                    }
+
+                    let exp = Expression::ObjectCreation{ 
+                                            class_name: "super".to_string(), 
+                                            arguments: arguments.clone()
+                                        };
+
+                    let result = eval_expression(enviornment, &exp, importing)?;
+                    
+                    match result {
+                        Value::Object{fields, ..} => {
+                            for (name, data) in fields {
+                                let value = data.value;
+                                enviornment.insert(name, value);
+                            }
+                        },
+                        _ => return Err(
+                            "Dev error non-object from parent initalization"
+                            .to_string())
+                    };
+
+
+                    Ok(Value::Null)
+                },
                 _ => Err(format!("'{function}' is not a function"))
             }
         },
@@ -698,7 +727,8 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                                     name: name.to_string(), 
                                     fields: fields.clone(), 
                                     init: params.init.clone(), 
-                                    methods: params.methods.clone()});
+                                    methods: params.methods.clone(),
+                                    parent_class: params.parent.clone()});
 
 
             Ok(Value::Null)
@@ -728,14 +758,16 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 return Err(format!("{} is undefined", class_name))
             };
             
-            let Value::Object { name, fields, init, methods } = res 
+            let Value::Object { name, fields, init, 
+                                methods, parent_class } = res 
                 else { return Err(format!("{} is not a class", class_name)) };
 
             if init.name.is_none() {
                 return Ok(Value::Object{name: name.clone(), 
                                         fields: fields.clone(), 
                                         init: init.clone(), 
-                                        methods: methods.clone()});
+                                        methods: methods.clone(),
+                                        parent_class: parent_class.clone()});
             }
 
             let init_args = match &init.arguments {
@@ -754,6 +786,25 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
             };
 
             let mut local_env = HashMap::<String, Value>::new();
+            
+            let mut parent_object: Option<Value> = None;
+            if parent_class.is_some(){
+                let p_name = parent_class.clone().unwrap();
+
+                let res = enviornment.get(&p_name);
+                let Some(val) = res else {
+                    return Err(format!("{} is not defined", p_name));
+                };
+
+                let p_obj= match val {
+                    Value::Object{ .. } => val,
+                    _ => return Err(format!("{} is not an object", p_name)) 
+                };
+
+                local_env.insert("super".to_string(), p_obj.clone());
+                parent_object = Some(p_obj.clone());
+            }
+
             for (name, exp) in init_args.iter().zip(arguments.iter()) {
                 let val = eval_expression(&mut enviornment.clone(), 
                                       exp, importing)?;
@@ -782,16 +833,99 @@ fn eval_expression(enviornment: &mut HashMap<String, Value>,
                 updated_fields.insert(field.to_string(), new_data);
             }
 
+            if parent_object.is_some() {
+                let obj = parent_object.unwrap();
+
+                let Value::Object{ ref fields, .. } = obj else {
+                    return Err("Dev error: Non-object assigned to parent 
+                                eval:Expression:ObjectCreation".to_string())
+                };
+
+                for (field, data) in fields {
+                    let Some(updated_field) = local_env.get(field) else {
+                        return Err(format!(
+                                "An error occured when initalizing {}", field))
+                    };
+                    let mut new_data = data.clone();
+
+                    new_data.value = updated_field.clone();
+
+                    updated_fields.insert(field.to_string(), new_data);
+                }
+                let parent_field = ClassField {
+                    is_private: true,
+                    value: obj.clone(),
+                };
+
+                updated_fields.insert("super".to_string(),parent_field);
+            }
+            
+
             Ok(Value::Object{name: name.clone(), fields: updated_fields, 
-                             init: init.clone(), methods: methods.clone()})
+                             init: init.clone(), methods: methods.clone(),
+                             parent_class: parent_class.clone()})
         },
         Expression::MethodCall { name, method, arguments  } => {
+            if name == "super" {
+
+                let Some(res) = enviornment.get("super") else {
+                    return Err("super used with no parent".to_string());
+                };
+
+                let Value::Object{methods, fields, ..} = res else {
+                    return Err("dev error, super not blacklisted".to_string());
+                };
+
+                for (name, data) in methods {
+                    if name == method{
+                        let method_args = data.arguments.clone();
+                        if arguments.len() != method_args.len() {
+                            return Err(format!("Expected {} arguments, got {}", 
+                                            method_args.len(), arguments.len()))
+                        }
+                        let mut local_env = HashMap::<String, Value>::new();
+                        for (name, exp) 
+                            in method_args.iter().zip(arguments.iter()) {
+                            let val = eval_expression(
+                                &mut enviornment.clone(), exp, importing)?;
+                            local_env.insert(name.to_string(), val);
+                        }
+
+                        for name in fields.keys() {
+                            let Some(val) = enviornment.get(name) else {
+                                return Err(
+                                    "Dev error, undefined field".to_string());
+                            };
+                            local_env.insert(name.to_string(), 
+                                             val.clone());
+                        }
+
+                        insert_builtins(&mut local_env);
+
+                        for statement in &data.statements {
+                            eval_statement(&mut local_env, 
+                                            statement, importing)?;
+                        }
+
+                        if data.return_exp.is_some() {
+                            let exp = data.return_exp.clone().unwrap();
+                            return eval_expression(&mut local_env, 
+                                        &exp, importing)
+                        }
+
+                        return Ok(Value::Null);
+                    }
+                }
+
+                return Err(format!("{} is not defined or is private", method));
+            }
+
             let Some(object) = enviornment.get(name) else {
                 return Err(format!("{} is not defined", name))
             };
 
-            let Value::Object{ name: _name, fields: object_fields, 
-                               init: _init, methods: object_methods } 
+            let Value::Object{ fields: object_fields, 
+                               init: _init, methods: object_methods , ..} 
                                = object else {
                 return Err(format!("{} is not an object", name))
             };

@@ -18,7 +18,8 @@ pub enum Value {
     UserDefFunction{name: String, statements: Vec<Statement>, 
         arguments: Vec<String>, return_expression: Option<Expression>},
     Object{name: String, fields: HashMap<String, ClassField>, 
-             init: ClassInitDef, methods: HashMap<String, ClassMethod>}
+           init: ClassInitDef, methods: HashMap<String, ClassMethod>,
+           parent_class: Option<String>}
 }
 
 impl fmt::Display for Value {
@@ -218,7 +219,9 @@ impl PartialOrd for Value {
     }
 }
 
-impl Eq for Value {}
+impl Eq for Value {
+    
+}
 
 impl Clone for Value {
     fn clone(&self) -> Self {
@@ -246,11 +249,12 @@ impl Clone for Value {
                     statements: statements.clone(), 
                     arguments: arguments.clone(), 
                     return_expression: return_expression.clone() },
-            Self::Object { name, fields, init, methods } 
+            Self::Object { name, fields, init, methods, parent_class } 
                 => Self::Object{name: name.clone(), 
                                   fields: fields.clone(), 
                                   init: init.clone(), 
-                                  methods: methods.clone()}
+                                  methods: methods.clone(),
+                                  parent_class: parent_class.clone()}
         }
     }
 }
