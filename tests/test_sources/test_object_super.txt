@@ -1,0 +1,41 @@
+class parentObj {
+    fields {
+        pub x, pub y, pub z
+    };
+
+    init(a, b, c){
+        this.x = a;
+        this.y = b;
+        this.z = c;
+    };
+
+    pub fn hello(){
+        println(x, y, z);
+    };
+};
+
+class childObj extends parentObj {
+    fields {
+        pub w
+    };
+
+    init(a, b, c, d) {
+        this.w = d;
+        super(a, b, c);
+    };
+
+    pub fn hello(){
+        println("Hello!");
+        println(this.x, this.y, this.z, this.w);
+    };
+
+    pub fn super_hello(){
+        super.hello();
+    };
+};
+
+
+[a, b, c, d]= [1, 2, 3, 4];
+object = new childObj(a, b, c, d);
+object.hello();
+object.super_hello();
