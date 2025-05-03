@@ -5,7 +5,7 @@ edition = "2021"
 description = "A language written in rust"
 repository = "https://github.com/nKumar2015/brainstorm"
 license = "MIT"
-keywords = ["rustlang", "programming-language"]
+keywords = ["brainstorm", "programming-language"]
 categories = ["learning-tools", "programming-language"]
 readme = "README.md"
 

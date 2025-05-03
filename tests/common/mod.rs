@@ -2,7 +2,6 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::str;
 
-
 pub fn get_program_output(file: &str) -> (String, String){
     let mut path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     path.push("target/debug/brainstorm");
