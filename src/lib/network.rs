@@ -10,6 +10,7 @@ pub struct Network {
 }
 
 impl Network {
+    /// # Panics
     pub fn from_sizes(sizes: Vec<usize>, 
                      activations: Vec<Activation>, 
                      input_dim: Vec<usize>) -> Self{
@@ -43,9 +44,9 @@ impl Network {
 
         let input_layer = InputLayer::new(sizes[0], input_dim, hidden_layers[0].neurons.clone());
         
-        for neuron in output_layer.neurons.iter_mut() {
+        for neuron in &mut output_layer.neurons {
             match &mut *neuron.borrow_mut() {
-                Neuron::Output(output) => output.previous = hidden_layers[hidden_layers.len() - 1].neurons.clone(),
+                Neuron::Output(output) => output.previous.clone_from(&hidden_layers[hidden_layers.len() - 1].neurons),
                 _ => panic!("Invalid neuron type for output layer"),
             };
         }
@@ -56,7 +57,7 @@ impl Network {
             println!("i: {}", i);
             for neuron in layer {
                 match &mut *neuron.borrow_mut() {
-                    Neuron::Hidden(hidden) => hidden.previous = hidden_layers[i - 1].neurons.clone(),
+                    Neuron::Hidden(hidden) => hidden.previous.clone_from(&hidden_layers[i - 1].neurons),
                     _ => panic!("Invalid neuron type for hidden layer"),
                 }
             }
@@ -65,7 +66,7 @@ impl Network {
         let first_layer = hidden_layers[0].neurons.clone();
         for neuron in first_layer {
             match &mut *neuron.borrow_mut() {
-                Neuron::Hidden(hidden) => hidden.previous = input_layer.neurons.clone(),
+                Neuron::Hidden(hidden) => hidden.previous.clone_from(&input_layer.neurons),
                 _ => panic!("Invalid neuron type for hidden layer"),
             }
         }
@@ -89,11 +90,9 @@ impl Network {
         }
     }
     
-
+    /// # Panics
     pub fn feedforward(&mut self, input: Vec<f64>) -> Vec<f64> {
-        if input.len() != self.input_layer.size {
-            panic!("Input size does not match input layer size");
-        }
+        assert!((input.len() == self.input_layer.size), "Input size does not match input layer size");
 
         self.input_layer.inputs = input;
 

@@ -148,6 +148,18 @@ mod tests {
     }
 
     #[test]
+    fn test_import_relative(){
+        let(log, errors)
+            = common::get_program_output("tests/test_sources/test_import_relative.txt");
+        
+        let expected_output
+            = common::read_file("tests/test_output/test_import_relative.output");
+        
+        assert_eq!(expected_output, log, "\nErrors:\n{}\n", errors);
+    }
+
+
+    #[test]
     fn test_list_indexing(){
         let(log, errors)
             = common::get_program_output("tests/test_sources/test_list_indexing.txt");

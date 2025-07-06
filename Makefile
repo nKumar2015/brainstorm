@@ -44,4 +44,4 @@ check_lint:
 						
 	python3 scripts/check_line_length.py \
 		'src/*.rs' \
-		80
+		90

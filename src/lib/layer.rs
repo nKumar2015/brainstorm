@@ -30,10 +30,10 @@ impl HiddenLayer {
                     RefCell::new(
                         HiddenNeuron::new(
                             previous.clone(),
+                            next.clone(),
                             vec![1.0],
                             0.0,
                             activation.clone(),
-                            next.clone(),
                         )
                     )
                 )
@@ -72,7 +72,7 @@ impl InputLayer {
 
         InputLayer { neurons, size, inputs: vec![] }
     }
-
+    /// # Panics
     pub fn feedforward(&self) {
         self.neurons.iter().for_each(|n| {
             match &mut *n.borrow_mut() {
@@ -100,7 +100,7 @@ impl OutputLayer {
                     .collect();
         OutputLayer { neurons, activation, size }
     }
-
+    /// # Panics
     pub fn feedforward(&self) -> Vec<f64> {
         let output: Vec<f64> 
             = self.neurons.iter().map(|n| {
@@ -110,17 +110,14 @@ impl OutputLayer {
                 }
             }).collect();
 
+        
+
         match self.activation {
-            Activation::Sigmoid{f} 
-                => output.iter().map(|&x| f(x)).collect(),
-            Activation::Tanh{f} 
-                => output.iter().map(|&x| f(x)).collect(),
-            Activation::ReLU{f} 
-                => output.iter().map(|&x| f(x)).collect(),
-            Activation::Identity{f} 
-                =>  output.iter().map(|&x| f(x)).collect(),
-            Activation::Softmax{f} 
-                => f(output),
+            Activation::Softmax 
+                => self.activation.apply_vector(output).unwrap(),
+            _ 
+                => output.iter().map(
+                    |&x| self.activation.apply_scalar(x).unwrap()).collect(),
         }
     }
 }

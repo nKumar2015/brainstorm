@@ -14,8 +14,8 @@ mod libtest {
         let mut network = Network::from_sizes(
             vec![1, 1, 1],
             vec![
-                brainstorm::lib::neuron::Activation::ReLU { f: |x| x },
-                brainstorm::lib::neuron::Activation::Identity { f: |x| x },
+                brainstorm::lib::neuron::Activation::ReLU,
+                brainstorm::lib::neuron::Activation::Identity,
             ],
             vec![1],
         );

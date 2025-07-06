@@ -2,6 +2,7 @@ use std::env::args;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Error};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 mod ast; 
 mod eval;
@@ -22,7 +23,7 @@ fn main() {
         return;
     }
 
-    let file = match read_file(&args[1]) {
+    let file = match read_file((&args[1]).into()) {
         Ok(file) => file,
         Err(e) => panic!("{}", e)
     };
@@ -53,7 +54,7 @@ fn main() {
     }
 }
 
-pub fn read_file(path: &str) -> Result<String, Error> {
+pub fn read_file(path: PathBuf) -> Result<String, Error> {
     let f = match File::open(path) {
         Ok(f) => f,
         Err(e) => return Err(e)

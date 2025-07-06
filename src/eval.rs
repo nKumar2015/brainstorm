@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::env::{ args, current_dir, var};
+use std::fs;
 use std::path::Path;
 
 use crate::ast::{ClassField, Expression, IfBranch, ListItem, 
@@ -371,86 +371,37 @@ fn eval_statement(enviornment: &mut HashMap<String, Value>,
                                     return_expression: return_expression.clone()
                                 });
         },
-        Statement::Import{path} => {    
-            // Get the provided path to file 
-            // and the directory the executable was called from
-
-            let args: Vec<String> = args().collect();
-            let cwd = current_dir().unwrap();
+        Statement::Import{path} => {
+            let args : Vec<String> =  std::env::args().collect();
+            let origin = Path::new(& args[1]);
+            let relative = Path::new(path);
+            let parent = origin.parent().expect("no parent found");
+            let target = parent.join(relative);
             
-            // The provided path
-            let origin_file: &String = &args[1];
-
-            // replace "." with the current working directory
-            let mut full_path = origin_file.clone();
-            if full_path.starts_with('.') {
-                full_path = origin_file.replacen('.', 
-                                    cwd.to_str().unwrap(),
-                                    1);
-            }
-            let external_code = 
-                if path.starts_with('.') {                    
-                    // Move one level up
-                    let parent_dir 
-                        = Path::new(&full_path).parent().unwrap();
-
-                    // replace the "." from the provided import path with the
-                    // parent directory we found earlier
-                    let full_import_path = 
-                        path.replacen('.', 
-                                    parent_dir.to_str().unwrap(), 
-                                    1);
-                    
-                    // attempt to read that file
-                    match read_file(&full_import_path) {
+            let external_code = {
+                if let Ok(real_path) = fs::canonicalize(target) {
+                    match read_file(real_path) {
                         Ok(f) => f,
-                        Err(_) => 
-                            return Err(format!("Error opening file at {}", 
-                                            full_import_path))
-                    } 
-                } else if path.contains('/'){
-                    match read_file(path) {
-                        Ok(f) => f,
-                        Err(_) => return 
-                            Err(format!("Error opening file at {}", path))
-                    } 
-                } else {
-                    // Move one level up
-                    let parent_dir 
-                        = Path::new(&full_path).parent().unwrap();
-                    let final_dir 
-                        = format!("{}/{}", parent_dir.to_str().unwrap(), path); 
-                    let result = read_file(&final_dir);
-
-                    // If the file is present in the same directory, use that
-                    #[allow(clippy::unnecessary_unwrap)]
-                    if result.is_ok() {
-                        result.unwrap()
-                    }else {
-                        // If the file is not present, check if the file exists 
-                        // in the paths listedn in the BRNSTM_LIB env var 
-                        let var = var("BRNSTM_LIB");
-                        let mut out = String::new();
-                        if var.is_ok(){
-                            let res_val = var.unwrap();
-                            let paths = res_val.split(':');
-                            for dir in paths {
-                                let lib_path = format!("{}/{}", dir, path);
-                                let res = read_file(&lib_path);
-
-                                if res.is_ok() {
-                                    out = res.unwrap();
-                                    break;
-                                }
-                            }
-                        }
-                        if out.is_empty() {
-                            return Err(format!("Error opening file at {}", 
-                                       path));
-                        }
-                        out.to_string()
+                        Err(_) => return Err(format!("Error opening file at {}", 
+                                           path)),
                     }
-                };
+                } else {
+                    let mut env_path = std::env::var("BRNSTM_LIB")
+                                            .expect("BRNSTM_LIB var not set");
+                    env_path.push('/');
+                    env_path.push_str(path);
+                    if let Ok(real_path) = fs::canonicalize(env_path) {
+                        match read_file(real_path) {
+                            Ok(f) => f,
+                            Err(_) => return Err(format!("Error opening file at {}", 
+                                               path)),
+                        }
+                    } else {
+                        return Err(format!("Error opening file at {}", path))
+                    }
+                }
+            };
+
             let ast = ProgramParser::new().parse(&external_code).unwrap();
 
             eval_program(enviornment, &ast, true)?;

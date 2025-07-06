@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-
 pub struct HiddenNeuron {
     pub inputs: Vec<f64>,
     pub previous: Vec<Rc<RefCell<Neuron>>>,
@@ -11,11 +10,10 @@ pub struct HiddenNeuron {
 }
 
 impl HiddenNeuron {
-    pub fn new(previous: Vec<Rc<RefCell<Neuron>>>, 
-               weights: Vec<f64>, 
-               bias: f64, 
-               activation: Activation, 
-               next: Vec<Rc<RefCell<Neuron>>>) -> Neuron {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(previous: Vec<Rc<RefCell<Neuron>>>, next: Vec<Rc<RefCell<Neuron>>>,
+               weights: Vec<f64>, bias: f64, activation: Activation, ) -> Neuron {
+
         Neuron::Hidden(
             HiddenNeuron {
                 inputs: vec![],
@@ -27,7 +25,8 @@ impl HiddenNeuron {
             }
         )
     }
-
+    
+    /// # Panics
     pub fn feedforward(&mut self) {
         let mut sum = 0.0;
         for (input, weight) in self.inputs.iter().zip(self.weights.iter()) {
@@ -35,13 +34,7 @@ impl HiddenNeuron {
         }
         sum += self.bias;
 
-        let activated_value = match self.activation {
-            Activation::Sigmoid { f } => (f)(sum),
-            Activation::Tanh { f } => (f)(sum),
-            Activation::ReLU { f } => (f)(sum),
-            Activation::Identity { f } => (f)(sum),
-            _ => panic!("Invalid activation function for hidden layer"),        
-        };
+        let activated_value = self.activation.apply_scalar(sum).unwrap();
 
         for neuron in &self.next {
             match &mut *neuron.borrow_mut() {
@@ -67,9 +60,9 @@ impl InputNeuron {
     pub fn feedforward(&self){
         for neuron in &self.next {
             match &mut *neuron.borrow_mut() {
-                Neuron::Hidden(hidden) => hidden.inputs = self.inputs.clone(),
-                Neuron::Input(input) => input.inputs = self.inputs.clone(),
-                Neuron::Output(output) => output.inputs = self.inputs.clone(),
+                Neuron::Hidden(hidden) => hidden.inputs.clone_from(&self.inputs.clone()),
+                Neuron::Input(input) => input.inputs.clone_from(&self.inputs.clone()),
+                Neuron::Output(output) => output.inputs.clone_from(&self.inputs.clone()),
             }
         }
     }
@@ -124,11 +117,30 @@ fn softmax(x: Vec<f64>) -> Vec<f64> {
 
 #[derive(Clone)]
 pub enum Activation {
-    Sigmoid{f: fn(f64) -> f64},
-    Tanh{f: fn(f64) -> f64},
-    ReLU{f: fn(f64) -> f64},
-    Identity{f: fn(f64) -> f64},
-    Softmax{f: fn(Vec<f64>) -> Vec<f64>},
+    Sigmoid,
+    Tanh,
+    ReLU,
+    Identity,
+    Softmax,
+}
+
+impl Activation {
+    pub fn apply_scalar(&self, x: f64) -> Result<f64, String> {
+        match self {
+            Activation::Sigmoid => Ok(sigmoid(x)),
+            Activation::Tanh => Ok(tanh(x)),
+            Activation::ReLU => Ok(relu(x)),
+            Activation::Identity => Ok(identity(x)),
+            Activation::Softmax => Err("This Activation function does not operate on scalars".to_string())
+        }
+    }
+
+    pub fn apply_vector(&self, x: Vec<f64>) -> Result<Vec<f64>, String> {
+        match self {
+            Activation::Softmax => Ok(softmax(x)),
+            _ => Err("This Activation function does not operate on vectors".to_string())
+        }
+    }
 }
 
 pub enum Neuron {
@@ -137,14 +149,4 @@ pub enum Neuron {
     Output(OutputNeuron),
 }
 
-#[allow(non_upper_case_globals)]
-pub const Sigmoid: Activation = Activation::Sigmoid{f: sigmoid};
-#[allow(non_upper_case_globals)]
-pub const Tanh: Activation = Activation::Tanh{f: tanh};
-#[allow(non_upper_case_globals)]
-pub const ReLU: Activation = Activation::ReLU{f: relu};
-#[allow(non_upper_case_globals)]
-pub const Identity: Activation = Activation::Identity{f: identity};
-#[allow(non_upper_case_globals)]
-pub const Softmax: Activation = Activation::Softmax{f: softmax};
 
